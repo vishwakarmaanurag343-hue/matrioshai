@@ -1,0 +1,19 @@
+{
+  "name": "matrioshai-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:backend": "cd apps/backend && source .venv/bin/activate && python main.py",
+    "dev:desktop": "cd apps/desktop && npm run dev",
+    "dev:tauri": "cd apps/desktop && npm run tauri dev",
+    "test:backend": "cd apps/backend && source .venv/bin/activate && PYTHONPATH=. pytest -v tests",
+    "check:frontend": "cd apps/desktop && npm run check",
+    "build:frontend": "cd apps/desktop && npm run build",
+    "check:extension": "cd apps/browser-extension && npm run check",
+    "build:extension": "cd apps/browser-extension && npm run build",
+    "test:extension": "cd apps/browser-extension && npm run test"
+  }
+}

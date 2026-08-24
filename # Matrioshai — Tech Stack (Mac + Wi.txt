@@ -1,0 +1,261 @@
+# Matrioshai — Tech Stack (Mac + Windows, Free/Open-Source First)
+
+Goal: every core piece below is free/open-source, has a real maintained community (not abandonware), and is chosen for **robustness first** — this is meant to actually ship and hold up, not be a demo.
+
+---
+
+## 1. Desktop shell (Mac + Windows)
+
+**Pick: Tauri 2.x** (Rust backend + native webview, not Electron)
+
+| Why | Detail |
+|---|---|
+| Size/performance | Tauri apps run **~5x less RAM and 20-50x smaller install size** than the same app in Electron — matters a lot once you're bundling a local LLM + vector DB alongside the app. |
+| Security | Tauri's whole design is **security-by-default with a Rust backend** — this lines up directly with your privacy-gatekeeper pitch. Electron's larger attack surface is a worse fit for a product whose core promise is data safety. |
+| Mobile path | Tauri 2.0 already supports iOS/Android, so if you ever want a companion mobile app later, it's the same codebase, not a rewrite. |
+| Cost | 100% free, open-source (MIT/Apache-2.0), no licensing. |
+| Frontend | Any web framework works inside it — **React** recommended, since it's what most AI-assisted coding tools (including Claude Code / Antigravity / Codex) generate best by default. |
+
+**Trade-off to accept:** Tauri uses each OS's native webview (WebKit on Mac, WebView2 on Windows) instead of bundling Chromium — meaning very slightly less pixel-perfect rendering consistency than Electron. For your use case (functional productivity app, not a design-heavy consumer app) this doesn't matter.
+
+---
+
+## 2. Backend / orchestration API
+
+**Pick: FastAPI (Python)**
+
+| Piece | Tool | Why |
+|---|---|---|
+| API framework | **FastAPI** | Free, async-native, auto-generates OpenAPI docs, huge ecosystem — the natural choice for an AI-orchestration backend since almost every AI/ML library (LangChain, LangGraph, Presidio, etc.) is Python-first. |
+| Task queue (for automation layer, Section 4) | **Celery** or **APScheduler** | Both free. APScheduler is simpler and enough for scheduled/triggered automation jobs; Celery if job volume grows and you need real distributed workers later. |
+| Local process communication (Tauri ↔ FastAPI) | Tauri **sidecar** pattern | Bundle the FastAPI backend as a sidecar binary inside the Tauri app so it ships as one installer, no separate server setup for the user. |
+
+---
+
+## 3. Orchestration / agent framework (Section 7)
+
+**Pick: LangGraph** (you already named this — confirmed good choice)
+
+- Free, open-source, built specifically for multi-agent graphs with state — maps directly onto your Section 7 orchestrator + specialist agents design.
+- Alternative/complement: **CrewAI** (also free) if you want simpler role-based agents for some of the persona packs — worth a quick prototype comparison once pack #2 is being built, not a v1 decision.
+
+---
+
+## 4. Memory / local LLM
+
+**Pick: Ollama + Qwen3 (3B)** — already decided by you
+
+| Piece | Tool | Why |
+|---|---|---|
+| Local model runtime | **Ollama** | Free, handles model download/quantization/serving with a simple API — no need to build your own inference server. |
+| Model | **Qwen3 3B** (your choice) | Small enough to run on consumer Mac/Windows hardware, good enough for filing/classification/routing (its actual job — it never needs to be a frontier reasoning model). |
+
+---
+
+## 5. Privacy / redaction layer (Section 2)
+
+| Piece | Tool | Why |
+|---|---|---|
+| PII detection/redaction | **Microsoft Presidio** (already named) | Free, open-source, actively maintained by Microsoft, purpose-built for exactly this (names, emails, financial figures, account numbers). |
+| Encryption at rest | **SQLCipher** (encrypted SQLite) or OS-native keychain (Keychain on Mac, Windows Credential Manager / DPAPI) for keys | Free. Use OS-native secure storage for the per-user encryption key itself — never store the key in a plain file. |
+| Secrets vault (for the password-manager-grade need flagged earlier — trip agent, browser co-pilot) | **HashiCorp Vault (OSS edition)** or simpler: OS keychain + a vetted open-source password-manager library (e.g. **KeePass**'s KDBX format, which is open and auditable) | This is the one place *not* to build custom crypto — use an audited existing format/library. |
+
+---
+
+## 6. Knowledge base / RAG (Sections 1.2, 6.5)
+
+| Piece | Tool | Why |
+|---|---|---|
+| Vector database | **Qdrant** or **ChromaDB** | Both free, open-source, run fully local (no cloud dependency — matches your on-prem requirement). Qdrant is more production-hardened; Chroma is faster to prototype with. Recommend starting with Chroma, migrate to Qdrant if you need more scale/filtering later. |
+| Document parsing | **Unstructured.io** (open-source core) | Free, handles PDF/DOCX/etc. parsing into clean chunks for RAG — better than hand-rolling parsers per file type. |
+| OCR | **Tesseract** (via `pytesseract`) or **PaddleOCR** | Both free, well-tested — exactly the "use existing OCR, don't build your own" call from the earlier reality check. |
+| Speech-to-text | **Whisper.cpp** (local, free, runs offline) | Same logic — proven, free, no need to train your own ASR model. |
+
+---
+
+## 7. Browser co-pilot / automation agent (Section 6.6/6.8)
+
+**Pick: Playwright**
+
+- Free, open-source, actively maintained by Microsoft, the current standard for browser automation — supports Chromium/WebKit/Firefox, handles login-session-aware automation (user logs in manually, Playwright drives the authenticated session afterward), which matches the "user logs in themselves" rule from the reality check.
+- This is also the natural engine behind the in-app browser tab.
+
+---
+
+## 8. Auth / integrations (Gmail, Calendar, Slack, etc.)
+
+- Use each provider's **official OAuth flow** — Google, Microsoft, Slack all provide free OAuth2 for developer apps at reasonable usage tiers. No paid tier needed until usage scales significantly.
+- Store OAuth tokens in the same encrypted-local pattern as everything else (Section 5 above), never in plain config files.
+
+---
+
+## 9. Free/open repos worth evaluating (don't build from scratch)
+
+| Need | Look at |
+|---|---|
+| PII redaction | `microsoft/presidio` (already decided) |
+| Multi-agent orchestration | `langchain-ai/langgraph` |
+| Local LLM serving | `ollama/ollama` |
+| Vector DB | `qdrant/qdrant` or `chroma-core/chroma` |
+| Document parsing/RAG chunking | `Unstructured-IO/unstructured` |
+| Browser automation | `microsoft/playwright` |
+| OCR | `tesseract-ocr/tesseract` or `PaddlePaddle/PaddleOCR` |
+| Local speech-to-text | `ggerganov/whisper.cpp` |
+| Secrets/password vault reference | `keepassxreboot/keepassxc` (study the architecture even if you don't fork it directly) |
+| Desktop shell | `tauri-apps/tauri` |
+
+Before adopting any of these, check: license (all listed above are permissive — MIT/Apache-2.0 — safe for commercial use), last-commit recency, and open-issue backlog, since "robust" means picking actively maintained projects, not just free ones.
+
+---
+
+## 10. What "robust" means here, concretely
+
+Since you said "never ever has been built" — the standard to hold this to:
+
+- **Every external call (LLM, OAuth, file system) wrapped in retry + timeout + graceful degradation** — no silent hangs, no unhandled exceptions reaching the user.
+- **Structured logging from day one** (even just to local files) — you cannot debug a multi-agent system without knowing what each agent did and when.
+- **Automated tests on the privacy gatekeeper specifically** — this is the one component where a silent bug (unredacted PII reaching the cloud) is catastrophic, not just annoying. Worth disproportionate test investment here versus other features.
+- **Versioned local schema/migrations** for the memory store — users' local data will need to survive app updates without corruption.
+
+---
+
+## Updated open decisions
+
+- [x] ~~Local model choice~~ → Qwen3 3B via Ollama
+- [x] ~~Delivery approach~~ → **Tauri 2.x** (this doc)
+- [ ] Redaction policy: always-redact vs. pass-through field list
+- [ ] Cloud LLM provider(s) + zero-retention terms confirmation
+- [ ] Vector DB: Chroma (v1 prototype) vs. Qdrant (production) — decide at pack #2
+
+---
+
+## Lightweight tech swaps (round 2 — re-optimized for low RAM)
+
+| Original pick | Lighter swap | Why |
+|---|---|---|
+| Chroma / Qdrant (vector DB) | **`sqlite-vec`** | Embedded SQLite extension for vector search — vectors live as ordinary BLOBs in the same SQLite file as everything else. No separate DB process/daemon, no extra RAM for a database server, one file to back up. This is now the **v1 default**; only move to Qdrant if usage genuinely outgrows single-machine embedded search. |
+| Ollama (local LLM serving) | **`llama.cpp` compiled directly into the backend** (optional, later) | Ollama is great for dev speed (simple API, auto-download), but it runs its own background daemon on top of llama.cpp. For a shipped, RAM-conscious build, linking llama.cpp directly avoids that extra process layer. **Keep Ollama for v1/dev**, consider the direct-link swap once you're optimizing a shipping build, not before. |
+| Full embedding model | **Small MiniLM-class embedding model (~20-100M params) via ONNX Runtime** | Document/RAG embeddings don't need a large model — a small sentence-embedding model run through ONNX Runtime (CPU-efficient, no GPU dependency) keeps embedding generation cheap and fast on any machine. |
+| Full LangGraph/LangChain stack for every agent | Evaluate **lighter agent frameworks** (e.g. smaller, more minimal orchestration libraries) for simple single-step agents | LangGraph is right for the actual multi-step orchestrator (Section 7.1) — keep it there. For simple agents that just call one tool and return, a full LangChain-stack import is unnecessary overhead. Worth a quick weight comparison once pack #2 is built, not a v1 blocker. |
+| Playwright bundling a full separate browser binary per engine (~300MB install) | **Drive the OS's existing browser/webview via Chrome DevTools Protocol (CDP) where only reading/navigation is needed**; reserve full Playwright for the subset of flows that truly need robust automation (form-filling, multi-step flows) | Cuts installed size and idle RAM for the "just show me the page and read what's on it" cases (e.g. checking Instagram notifications), while keeping Playwright for higher-value automation like the trip-booking flow. |
+| Puppeteer/browser-driven WhatsApp automation (whatsapp-web.js) | **Baileys** (pure WebSocket implementation of the WhatsApp Web protocol) | Same QR-scan login experience, no Chromium instance required at all — this is the lightest way to get WhatsApp Web-style access, not just an alternative one. |
+| PaddleOCR as default | **Tesseract as default**, PaddleOCR as optional/pluggable | ~~Tesseract is a lean, dependency-free C++ binary...~~ **SUPERSEDED — see round 3 correction below.** |
+| Full Whisper model | **Whisper.cpp, tiny/base quantized model** (already speced — confirming explicitly) | Tiny/base quantized models run in the ~75-150MB range and are enough for voice-to-text note-taking; only step up to a larger Whisper size if transcription accuracy complaints show up in real usage. |
+
+## Suggested resource budget (target, not guarantee)
+
+| State | RAM target |
+|---|---|
+| App idle (no active LLM query, no browser tab open) | < 500MB |
+| Local model (Qwen3 3B) actively answering | + ~2-3GB while active, released after |
+| Embedded browser tab open (CDP-driven, read-only) | + ~150-250MB |
+| Embedded browser tab open (full Playwright automation) | + ~300-400MB |
+
+Setting a number like this now — even a rough one — gives you something concrete to test against once v1 is running, instead of discovering the RAM problem after the fact.
+
+---
+
+## Round 3 correction — OCR: reuse your existing mobile model, don't add Tesseract/PaddleOCR
+
+The earlier "use Tesseract/PaddleOCR instead of building your own OCR" advice was about avoiding the cost of **training a model from scratch** — it wasn't a claim that mobile models can't run on desktop. Desktop hardware has more compute than mobile, not less, so if you already have a working, lightweight mobile OCR model, it should run at least as well on Mac/Windows.
+
+| Model format | Desktop compatibility | Action needed |
+|---|---|---|
+| **TFLite** | Cross-platform via ONNX Runtime or the LiteRT desktop runtime | None — same model file, new runtime binding |
+| **ONNX** | Cross-platform natively | None — already portable |
+| **CoreML** | Mac-native only | Needs conversion to ONNX for the Windows build (one-time conversion step, tooling exists via `coremltools` → ONNX) |
+
+**Action:** drop Tesseract/PaddleOCR from the plan — reuse the existing model on both platforms. Confirm which format it's currently in to know whether the Windows build needs a conversion step.
+
+---
+
+## Round 3 correction — notification listening (replaces "browser automation" for platforms with real desktop apps)
+
+| Platform | Desktop app exists? | Best mechanism | Notes |
+|---|---|---|---|
+| Telegram | Yes | **Official real-time API** (MTProto via Telethon/Pyrogram, or Bot API) | No browser/notification-listener needed at all — this is the cleanest of all of them. |
+| Slack | Yes | **Official Events API / push** | Already real-time, official. |
+| Gmail | N/A (web/API) | **Official Gmail API push (Pub/Sub)** | Already real-time, official. |
+| WhatsApp | Yes (Desktop) | **OS notification listener (Windows)**, or logged-in WhatsApp Web session as fallback | No official personal-use API exists; moderate (not severe) unofficial-use risk. |
+| Instagram | **No official Mac/Windows desktop app** | N/A | Excluded from v1 regardless of OS — no legitimate desktop-side mechanism currently exists. |
+
+**OS-level notification listening — platform support:**
+- **Windows:** `Windows.UI.Notifications.Management.UserNotificationListener` — official WinRT API, reads any app's notifications with explicit user permission, supports live subscription to new notifications. Use this as the general-purpose fallback for any desktop app that doesn't have its own real-time API.
+- **macOS:** No equivalent public API for third-party notification reading exists. Apple tightened third-party notification access rules again in March 2026. Don't build against the private Notification Center database — it's undocumented, fragile across OS updates, and works against the direction Apple is moving. On Mac, rely on each platform's own official API where one exists (Telegram, Slack, Gmail all qualify); for platforms without one (WhatsApp), the logged-in-session fallback is the realistic option, accepted with its moderate risk profile.
+
+---
+
+## Notes storage architecture — formal design (Section 6.2, the "notes tab")
+
+Not a database blob, not disconnected AI-exported files — a hybrid pattern, closer to how Obsidian is built than either extreme.
+
+### The two layers
+
+| Layer | What it is | Why it exists |
+|---|---|---|
+| **Source of truth: plain `.md` files on disk** | Every note, and every dated "Memorize" entry, is a real Markdown file the user could open in any text editor | Maximally portable, human-readable, nothing locked into a proprietary format. Backs up cleanly through the existing Google Drive integration (6.10) with zero extra work — it's just files. |
+| **Index layer: SQLite + `sqlite-vec`** | A local database that tracks metadata per note (date, time, source platform, tags) and holds the embedding vector for each note, for fast semantic search | Lets the app query and search instantly without re-reading every file from disk on every request. This is the same `sqlite-vec` instance already speced for the knowledge base (Section 1.2) — notes are just another collection in it, not a separate system. |
+
+### How writes flow through it
+
+1. User types a note, or triggers `@mention`, or hits "Memorize" on a page.
+2. The content is written as a **`.md` file first** — this is the durable, portable copy.
+3. The index layer picks it up: extracts metadata (date/time/source), generates an embedding, stores both in `sqlite-vec` alongside a pointer back to the file.
+4. Search, the daily/timeline view (from batch 5), and `@mention` parsing all query the **index**, not the raw files — fast, structured, consistent with everything else built on `sqlite-vec`.
+
+### Why this fits the project better than either alternative
+
+- **Vs. a pure database blob:** the user can always get their raw notes back by just looking at the files — consistent with the "user owns their data" pitch running through the whole doc, not just a policy statement but something literally true of the file layout.
+- **Vs. disconnected one-off AI-generated files** (the pattern this conversation was using before this correction): notes need to be searchable, dated, and cross-referenced by the memory core — a pile of standalone files with no index can't support the "dated log" feature (batch 5) or `@mention` parsing at all.
+
+### Encryption note
+The `.md` files themselves need to sit inside the same encrypted-at-rest zone as everything else in Section 2.1 — this isn't a separate storage location exempt from the privacy gatekeeper, it's just another data type flowing through the same local-only zone.
+
+---
+
+## Memory architecture — corrected from "RAG + vector DB" to tiered memory
+
+RAG-only retrieval is now considered outdated for agent memory as of 2026 — the field converged on a tiered model. This replaces the earlier "just use sqlite-vec" framing with a proper structure (sqlite-vec is still correct — it's now one tier, not the whole system).
+
+### The three tiers (Letta/MemGPT pattern, adapted for local-first)
+
+| Tier | What it holds | Storage | Behavior |
+|---|---|---|---|
+| **Core memory** | Fixed, always-loaded context: user identity, active persona, current goals/preferences | Small structured record, always injected into the prompt prefix (cacheable) | Never searched — always present, kept small on purpose |
+| **Recall memory** | Recent notes, conversations, open loops, decision log entries | `sqlite-vec`, search-indexed | Queried per-request, only the relevant slice retrieved |
+| **Archival memory** | The full knowledge base — documents, old notes, historical sessions | `sqlite-vec` (larger, cold-storage tier) | Queried only when Recall memory doesn't have the answer |
+
+### Tooling — self-hosted only, never the cloud-hosted versions
+
+| Component | Tool | Why self-hosted matters here |
+|---|---|---|
+| Memory framework pattern | **Mem0** or **Letta** (both open-source) | These frameworks' hosted/SaaS offerings send data to their servers — that breaks the local-first pledge. Run the open-source version locally instead; same architecture pattern, no external dependency. |
+| Temporal/relationship graph | **Graphiti** (Apache 2.0, open-source) | Tracks relationships that change over time — org structure, who reports to whom, which decision superseded which. This is what lets the CEO/COO personas reason about *how things relate and changed*, not just retrieve text snippets. Complements `sqlite-vec`, doesn't replace it. |
+| Standardized access interface | **Expose the memory core as an MCP server** | Every agent (your own personas, plus external handoffs like Antigravity/Codex) queries memory through one consistent interface, instead of each agent building its own access path — reinforces the centralized-enforcement fix from the security audit (one interface is easier to secure than many). |
+
+### Why this matters for the persona system specifically
+CEO/COO/CFO personas (6.3) are prompt-engineering, not separate models — same model, different framing instructions, shared memory. The **graph layer is what makes those personas actually useful** beyond a differently-worded chatbot: a CEO persona reasoning about "who should approve this" needs relationship/org data, not just semantically similar text.
+
+---
+
+## Token/cost optimization — structural rules, not just a checklist
+
+### Rule 1: Never interleave stable instructions with the dynamic query
+Structure every LLM call as: **`[persona/system prompt — stable] → [tool definitions — stable] → [retrieved memory + user's actual question — dynamic]`**. Keeping the stable part first and unchanged lets prompt caching work — providers cache the repeated prefix and bill it at up to 90% off, with zero quality loss. This is also just cleaner architecture (matches the "don't combine skill instructions with the live question" instinct directly).
+
+### Priority order for cost reduction
+1. **Prompt caching** — stable prefix (persona + tools), highest savings for the least engineering effort
+2. **Local model handles routing/classification** — already speced (Qwen3 3B) — budget-tier models cost 15-50x less than frontier models for simple extraction/filing
+3. **Retrieve only the relevant memory slice** — never resend full history; the orchestrator (7.1) already pulls "only the relevant slice," this confirms that design was right
+4. **Constrain output length/structure** — request structured JSON with a length cap where possible, rather than open-ended prose
+5. **Semantic caching** — for near-duplicate queries (e.g., daily digest generation), skip the LLM call entirely on a cache hit
+
+---
+
+## Structured elicitation — AI offers tappable choices instead of open-ended back-and-forth
+
+New tool to build into the agent framework: when an agent is unsure what the person wants, it presents 2-4 short options instead of asking an open-ended question. Two benefits at once:
+- **Better mobile UX** — tapping beats typing, especially for quick disambiguation
+- **Token savings** — avoids multi-turn free-text clarification loops, which cost tokens on every round trip
+
+**Recommended implementation:** a reusable tool every agent can call (`ask_choice(question, options[])`), same pattern as the confirm-before-send tool already speced for consequential actions — this is the same mechanism, just for resolving ambiguity instead of confirming an action.

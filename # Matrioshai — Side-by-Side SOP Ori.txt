@@ -1,0 +1,203 @@
+# Matrioshai — Side-by-Side SOP: Original Plan vs. Expanded Vision vs. Recommended Roadmap
+
+This lays the original sequencing (Sections 1–5) next to the raw feature vision (Section 6) side by side, so scope creep is visible at a glance — then proposes one merged path.
+
+---
+
+## Layer-by-layer comparison
+
+| Layer | Original Plan (Sec 1–5) | Expanded Vision (Sec 6) | Recommended Roadmap Position |
+|---|---|---|---|
+| **Memory core** | Persistent user context, small local model for filing/routing | 6.5 On-prem memory (RAG + MCP server) — "the brain" | **Build now — v1.** 6.5 isn't new scope, it's the same idea restated. Fold it in as the reference implementation of 1.1. |
+| **Privacy gatekeeper** | Local zone, PII redaction, cloud zone w/ zero-retention, rehydration, audit log | 6.4 Bring-your-own-API-key panel | **Build now — v1.** 6.4 is a config surface on top of the existing gatekeeper, not a new layer. Cheap to add once 2.x exists. |
+| **Tool-use pack #1** | Developer pack (GitHub, terminal, deploys) — recommended first | 6.7 Zero-touch coding agent handoff (e.g. Antigravity) | **Build now — v1.** 6.7 is literally the developer pack's natural extension. Sequence: dev pack basics → handoff feature. |
+| **Tool-use pack #2** | Founder/business pack (email, calendar, CRM) | 6.1 Social connect hub, 6.2 Notes-as-command-center, 6.3 Company-pillar personas | **Build next — v1.1.** These four are one coherent bundle: connect once (6.1) → command from notes (6.2) → route to persona (6.3) → land in founder pack. Don't build them as four separate initiatives. |
+| **Tool-use pack #3** | Student/researcher pack | — (nothing in Sec 6 maps here) | **Defer — v2.** Lowest willingness-to-pay per original doc; nothing in the new vision strengthens the case to move it up. |
+| **Automation layer** | Built last — acts on schedule/trigger, highest risk | 6.11 Trip agent auto-logs expenses; 6.3 persona summaries auto-append to notes | **Defer — v2, after a tool-use pack is stable.** Both Sec 6 examples are automation dressed as features — they inherit the "no automation before trustworthy memory+tools" rule, not an exception to it. |
+| **Orchestration (Sec 7)** | *(not in original 1–5, added later)* | 6.3 persona agents, 6.6 browsing agent, 6.7 coding agent, 6.8 commerce agent, 6.11 trip agent | **Build when pack #2 lands.** One agent (dev pack) doesn't need an orchestrator. The moment pack #2 + personas exist, routing logic becomes necessary — build it then, not before. |
+| **Delivery/platform** | Mac + Windows, format undecided | — | **Decide before v1 ships**, doesn't depend on any Sec 6 item. |
+
+---
+
+## New feature to fold in: auto file-discovery ("sandbox find")
+
+**What it is:** person types something like *"I have the doc in my Projects folder"* — no manual upload — and the system searches local/connected storage, locates the matching file, and attaches it to context automatically.
+
+| Aspect | Detail |
+|---|---|
+| **Where it belongs** | Extension of **1.2 Private Knowledge Base**, not a new layer. The ingestion pipeline already exists; this adds a *discovery* step in front of it. |
+| **How it should work** | 1) Small local model parses the reference ("third folder," "Projects folder," "that PDF from yesterday") into a filesystem/query intent. 2) A local file-index (built once, updated incrementally — like a local search index, not a live filesystem crawl on every request) resolves the intent to candidate file(s). 3) If one clear match → auto-attach. If ambiguous → ask the person to confirm which file, don't guess silently. |
+| **Sandbox requirement** | This needs an actual sandboxed scope — a whitelisted set of folders the user has explicitly granted access to (e.g. via an OS-level file picker / scoped permission), not blanket filesystem access. "Find it automatically" should never mean "search the entire disk by default." |
+| **Privacy gatekeeper interaction** | Once a file is found, it still goes through the **same PII redaction path (Section 2.2)** as any manually uploaded doc before anything reaches the cloud zone. Auto-discovery changes *how the file gets in*, not what happens to it after. |
+| **Recommended roadmap position** | **v1 — build alongside 1.2**, since it's a UX layer on top of something you're already building, not new infrastructure. Low cost to add now; expensive to bolt on later once ingestion is built without it. |
+| **Reality-check flag** | Silent/ambiguous auto-attach is the risk — if two files could match, resolving to the wrong one and sending it to a cloud LLM is a real privacy failure mode, not just a UX annoyance. **Always confirm on ambiguity; never auto-attach on best-guess.** |
+
+---
+
+## Items that need a flag before they're scheduled anywhere
+
+| Feature | Why it's flagged | Recommended treatment |
+|---|---|---|
+| 6.9 Zero hallucination | Not achievable with any current LLM | Reword as product promise: "grounded, cited, confidence-flagged" — not "zero hallucination." No engineering ticket needed, just a copy/positioning fix. |
+| 6.11 Password storage + auto account creation | Security liability if built casually | Do not build inside the trip agent. Needs a dedicated secrets-vault workstream (password-manager-grade architecture) with its own security review — treat as a separate, gated project, not a checkbox inside 6.11. |
+| 6.7 Own OCR + own voice-to-text | Large ML build for a solo founder, low marginal value over existing tools | Use existing OCR/ASR (open-source or API) behind your UI for v1. Revisit "own model" only once there's revenue to justify the build. |
+| 6.6 In-app browser co-pilot | Powerful but high integration/security surface (logged-in sessions, on-page actions) | Defer to v2+, after orchestrator exists — it's an agent like any other in Sec 7, not a v1 primitive. |
+| 6.8 E-commerce console integration | Net-new integration + analytics engine, not an extension of anything in v1 scope | Defer to v2+. Good pack-3-or-4 candidate once dev + founder packs are proven. |
+| 6.10 Calendar/drive as storage backup | Minor, low-risk | Cheap add-on to founder pack (pack #2) whenever calendar integration is already being built for other reasons. |
+
+---
+
+## The one-line version
+
+**v1 (build now):** Memory core + Privacy gatekeeper + Dev pack + coding-agent handoff + BYO-API-key panel + scoped auto file-discovery.
+**v1.1 (build next):** Founder pack + connect hub + notes-command-center + persona pillars + orchestrator.
+**v2 (defer):** Student pack, automation layer, browser co-pilot, commerce agent, trip agent, secrets vault workstream.
+**Ongoing, not scheduled:** Reword "zero hallucination" messaging now — it's free and prevents a future trust problem.
+
+---
+
+## Founder spec batch 3 — mapped to existing sections
+
+These are refinements/confirmations of things already in the doc, not new layers. Mapping each one so nothing gets built twice under a different name.
+
+| # | What was described | Maps to | Refinement it adds |
+|---|---|---|---|
+| 1 | Toggle button to switch entire chat into a persona (CEO/CFO/COO) | **6.3 Company pillars** | Clarifies UX: it's a **toggle inside the active chat**, not a separate screen per persona. Selecting "CEO" reframes the whole conversation, not just one message. |
+| 2 | Notes tab: write freeform, `@mention` a platform (e.g. "send update to XYZ @gmail"), AI parses intent, **asks permission**, then executes | **6.2 Notes-as-command-center** | Adds the missing piece from the original spec: **explicit permission step before send**, not silent auto-send. This should be a hard rule — anything that leaves the app (email, message) needs a confirm step, same as the account-creation rule in 6.11's reality check. |
+| 3 | Sandbox terminal access — AI can access terminal and make required file changes | **3.1 Developer pack** | This is the dev pack's core capability, now explicit. **Needs its own reality-check flag** (see below) — terminal write access is high-trust and should be scoped/sandboxed per project, not global. |
+| 4 | In-app browser (Atlas-style): plan in chat → AI executes step-by-step in a side panel; user logs in themselves; AI reads e-commerce dashboards, logs daily track record, can auto-update calendar/notes; can also search competitors and report what the user's product is missing | **6.6 Browser co-pilot + 6.8 Commerce agent**, merged | Confirms these two were always one feature, not two — the browsing agent *is* how commerce analytics gets read. Adds: **user handles login themselves** (AI never touches credentials — good, keep this rule), AI only acts after that. |
+| 5 | Trip planning: user describes requirements in chat → AI opens side browser tab, searches, summarizes options → user signs up → fields auto-fill | **6.11 Trip planning agent** | Confirms the flow: **research happens in-chat, booking happens in-browser with the user present**, not autonomously. Auto-fill only after user's own sign-up — keeps the "no autonomous account creation" reality-check rule intact. |
+| 7 | Google Drive integration for storing user data/notes | **6.10 Calendar + drive storage** | Confirms as-is, no changes. |
+| 8 | Landing page / project build: plan fully in notes → `@antigravity` hands off to that tool automatically, OR user opens Codex in terminal and talks through building the project | **6.7 Coding agent handoff** | Adds a **second handoff path** (Codex via terminal) alongside Antigravity — both are "package the plan, hand to an external coding tool," same feature, two possible targets. Keep the target swappable, not hardcoded to one tool. |
+| 9 | Small self-hosted LLM (Qwen3 ~3B params) for basic/local tasks; settings panel to add API keys per feature (chat, browser, notes execution, deep research, etc.) | **1.1 Memory layer local model** (now specified: Qwen3 3B) **+ 6.4 BYO-API-key panel** (now specified: per-feature, not just one global key) | This resolves one of the open decisions — local model choice is no longer TODO, it's **Qwen3 3B**. Update the open-decisions list below. BYOK is now confirmed **per-surface** (separate key for chat vs. browser vs. deep research), which is a bigger settings UI than originally scoped — small but real addition to v1.1. |
+| 10 | Omni-harness agent that assigns tasks to other agents | **7.1 Orchestrator** | Confirms as-is — this is the orchestrator, just named differently. No new work. |
+| 11 | Don't send full documents to the LLM — extract/recognize data from docs into RAG (or LangGraph), cloud LLM gets reasoning only, local model holds full knowledge | **2.2 PII redaction + 6.5 On-prem RAG**, merged | This is the strongest possible version of the privacy pattern already in the doc — worth stating as a **hard rule**: cloud LLM never sees a raw document, only RAG-retrieved, redacted snippets relevant to the query. Frame this as the technical implementation of the privacy promise, not a separate feature. |
+
+*(Note: #6 wasn't in your message — numbering jumped 5→7. Flagging in case something was meant to go there.)*
+
+---
+
+## New reality-check flags from this batch
+
+| Feature | Risk | Recommended guardrail |
+|---|---|---|
+| Terminal/file-system sandbox (#3) | AI making direct file/terminal changes is high-blast-radius if scoped wrong (wrong repo, wrong branch, destructive command) | Scope per-project (like the folder whitelist for file-discovery), require confirm on destructive actions (delete, force-push, `rm`), keep a rollback/undo path |
+| Browser co-pilot acting on logged-in sessions (#4) | AI is now driving a real, authenticated session (ad accounts, e-commerce dashboards) | Confirm before any action with financial/business impact (e.g. launching an ad campaign); read-only by default, write actions need explicit go-ahead |
+| Per-feature BYOK settings panel (#9) | More keys = more places a key can leak or be misconfigured | Store all keys through the same encrypted-at-rest pattern as 2.1, never log key values even in debug output |
+
+---
+
+## Open decisions — updated
+
+- [ ] Redaction policy: always-redact vs. pass-through field list
+- [ ] Cloud LLM provider(s) + zero-retention terms confirmation
+- [x] ~~Local model choice for memory layer~~ → **Decided: Qwen3, ~3B parameters, self-hosted**
+- [ ] Mac/Windows delivery approach
+
+---
+
+
+## Founder spec batch 4 — social media hub, notification summaries, privacy browser
+
+| # | What was described | Maps to | Refinement it adds |
+|---|---|---|---|
+| A | Social media tab: connect Gmail, Slack, WhatsApp, Telegram, etc. — AI summarizes notifications across them ("on this platform, this person wants X") | **6.1 Social connect hub**, extended | Turns the connect hub from "just auth once" into an active **notification aggregator**. Needs a background poll/webhook per platform, feeding into the memory core so summaries are cross-referenced with who the person is (from 1.1), not just raw notification text. |
+| B | In notes, `@whatsapp` on a line → AI drafts the message and sends it to that person on WhatsApp | **6.2 Notes command center**, extended | Same pattern as `@gmail` already speced — WhatsApp needs its own agent adapter. **Flag:** WhatsApp's official Business API requires business verification and has messaging-window restrictions (can't freely message someone who hasn't messaged you first in 24h, outside approved templates) — needs real research before promising it works like email. |
+| C | For platforms without API access (e.g. Instagram) — open that platform in the in-app browser tab instead, and surface real-time notifications from there | **6.6 Browser co-pilot**, extended | Correct fallback pattern: **API where available, browser-session fallback where not.** Keep as an explicit two-tier design — don't force every platform through one integration method. |
+| D | Browser tab should have Brave-style built-in privacy: ad blocking, tracker blocking | **6.6 Browser co-pilot**, extended | Free/open option: bundle **uBlock Origin** (the engine much of Brave's own blocking is built on) into the embedded browser view instead of building a blocklist engine from scratch. |
+
+### Reality-check flags for this batch
+
+| Feature | Risk | Recommended guardrail |
+|---|---|---|
+| WhatsApp/Telegram auto-send from notes (B) | Platform API restrictions vary a lot — WhatsApp especially has strict rules on unsolicited messaging via Business API | Confirm each platform's actual API terms before promising the feature; may need to fall back to "draft only, user taps send" for platforms with strict rules — same permission-before-send rule as 6.2 |
+| Browser-based notification scraping for API-less platforms (C) | Reading notifications by watching a logged-in browser session is fragile (breaks when the platform changes UI) and closer to "scraping" than "integration" — some platforms' ToS restrict this | Treat as best-effort, not guaranteed — tell the user this tier is less reliable than the API-based tier, don't promise parity |
+| Notification content flowing into memory core (A) | This is now ingesting third-party message content, not just documents the user uploaded — same privacy-gatekeeper rules (redaction before any cloud call) must apply | No special exception for notification data — it goes through Section 2 exactly like everything else |
+
+---
+
+## Feasibility audit round 2 — impossible / high-risk items found on re-read
+
+| # | Item | Where | Verdict | What to do instead |
+|---|---|---|---|---|
+| 1 | Instagram browser automation for notifications/DMs | 6.6/6.8, batch 4-C | **High risk, not "best effort"** — unofficial browser automation on Instagram carries a real double-digit annual suspension rate, and Meta has escalated enforcement sharply through 2026, including going after the tools/libraries themselves. | Make Instagram explicitly **opt-in with a clear risk warning**, not a silent fallback tier. Reading-only (no sending) is lower-risk but still not zero-risk. Consider dropping Instagram from v1 entirely and revisiting once/if Meta's API opens up further. |
+| 2 | "Zero-touch" account creation + autofill on travel/booking sites | 6.11 | **Not reliably achievable** — most booking sites run bot-detection (Cloudflare, reCAPTCHA) by design, which will intermittently block automation regardless of engineering quality. | Keep human-present for signup (already partly speced) — stop describing this as zero-touch anywhere in messaging/docs. Set expectation as "AI prepares everything, you click through." |
+| 3 | "Real-time" notifications across every connected platform | 6.1, batch 4-A/C | **Overstated for most platforms** — most personal-account platforms have no real webhook, so "real-time" becomes constant polling, which fights the lightweight goal directly. | Split explicitly: **webhook-based (Slack, Gmail push, Telegram Bot API) = near-real-time**; everything else = **periodic check**, and say so in the UI, not just internally. |
+| 4 | Full stack running concurrently (local LLM + vector DB + OCR + ASR + browser + multiple pollers) while promising low RAM | Whole project | **Needs an explicit resource budget**, not just "each piece is free and light" — they add up. | Set a target (e.g. "idle: <500MB, active local-LLM query: <2GB") and design against it, not against feature completeness alone. |
+
+## Feasibility audit round 3 — corrections from founder feedback
+
+| # | Original flag | Correction | New verdict |
+|---|---|---|---|
+| 1 | Instagram browser automation — high ban risk | Use **OS-level notification listening** instead of browser automation, for platforms with a real desktop app. **Windows** has an official, sanctioned API for this (`UserNotificationListener` — reads any app's notifications, with explicit user permission). **Mac has no equivalent public API** for reading other apps' Notification Center content, and Apple tightened third-party notification rules again in March 2026 — the only workarounds are undocumented/fragile. Also: **Instagram has no official Mac/Windows desktop app**, so this technique doesn't apply to it regardless of OS. | **Add OS-native notification listening as the v1 approach for Telegram/Slack/WhatsApp Desktop on Windows (full support via UserNotificationListener). On Mac, use each platform's own official API instead of Notification Center reading. Instagram stays excluded — no official desktop app for either OS.** |
+| 2 | "Zero-touch" travel booking — CAPTCHA blocks full automation | Confirmed design: AI automates everything up to the CAPTCHA/confirmation step, **pauses, hands control to the user, resumes after** they clear it. | **Resolved.** This is the actual v1 flow — human-in-the-loop at the CAPTCHA checkpoint, not autonomous end-to-end. |
+| 3 | "Real-time" notifications overstated for most platforms | Per-platform reality: **Telegram** has a genuinely official real-time API (MTProto via Telethon/Pyrogram, or Bot API) — no browser tab needed at all. **Slack & Gmail** have official push (Events API, Pub/Sub). **WhatsApp** has no official personal-use API — an already-logged-in WhatsApp Web session (the "logged-in tab" idea) is the realistic fallback here, with moderate (not zero, not severe) unofficial-use risk. **Instagram** — same idea reduces back to browser automation, which stays excluded per #1. | **Real-time is achievable and honest for Telegram, Slack, Gmail via their official APIs. "Logged-in tab" fallback applies specifically to WhatsApp, not as a general-purpose technique across all platforms.** |
+| 4 | OCR — recommended Tesseract/PaddleOCR over a custom model | Correction: the original flag was about **not building a model from scratch**, not about mobile models being unable to run on desktop — desktop has more compute than mobile, not less, so an existing working mobile model will run at least as well on Mac/Windows. Only the file format matters: **TFLite/ONNX → cross-platform via ONNX Runtime/LiteRT, no rebuild.** **CoreML → Mac-native only, needs conversion to ONNX for Windows.** | **Reuse the existing mobile OCR model on desktop — drop Tesseract/PaddleOCR from the plan. Confirm the model's format (TFLite/CoreML/ONNX) to determine if a Windows-side conversion step is needed.** |
+
+---
+
+## Feasibility audit round 4 — login mechanism clarifications (QR-code / browser-session approaches)
+
+| Platform | Login approach described | Verdict | Recommended implementation |
+|---|---|---|---|
+| **WhatsApp** | QR-code scan (WhatsApp Web-style) | **Confirmed as the fallback approach — but implementation choice matters a lot for weight.** Unofficial protocol either way (moderate, not severe, ban risk — unchanged from round 3). | Use **Baileys** (pure WebSocket protocol implementation, no browser) instead of a Puppeteer/browser-driven tool like whatsapp-web.js. Same QR-scan login UX, far lighter — no Chromium instance sitting in memory. |
+| **Telegram** | QR-code scan login | **This is Telegram's own official authentication mechanism** — not scraping. QR login is literally how Telegram Desktop/Web sign in. Building on MTProto (Telethon/Pyrogram/GramJS) with QR login is fully legitimate. | No browser needed at all — direct MTProto connection. No ban risk. Confirms round 3's Telegram recommendation, specifically for the QR-login detail. |
+| **Gmail** | Browser login fallback if no API | **Unnecessary — a free official API already exists and is strictly better.** Browser-automated Google logins tend to trigger Google's own bot/security detection (forced 2FA, suspicious-login holds) — worse UX than the standard OAuth consent screen users already trust. | **Always use the official Gmail API + OAuth2** ("Sign in with Google" flow) + Pub/Sub push for real-time. No browser-login fallback needed or advised for Gmail specifically. |
+
+
+
+---
+
+## Section 8 — Founder/CEO daily-use gaps (new, from usage-pattern review)
+
+These aren't technical feasibility flags — they're gaps found by checking the doc against how a founder actually spends a day and thinks, not just what's technically buildable. None require a new architectural layer; each extends something already speced.
+
+### 8.1 Daily-operations gaps
+
+| # | Gap | What's missing | Extends | Recommended roadmap position |
+|---|---|---|---|---|
+| 1 | Morning brief / daily digest | Notification summaries exist per-platform, but nothing rolls everything into one prioritized "here's your day" view — overnight emails that matter, calendar, overdue items, decisions needed before noon | **3.2 Founder pack**, new behavior on top of existing integrations | v1.1 — high value, low build cost once pack #2 integrations exist |
+| 2 | Commitment / follow-up tracking ("open loops") | Nothing tracks commitments made by or to the founder ("send me that Friday," "I'll follow up next week") and nudges when due/overdue | **1.1 Memory core** — new structured object type the local model files and resurfaces | v1.1 — one of the highest-value, most concrete founder pain points |
+| 3 | Inbox/message triage (not just send) | `@gmail` covers composing/sending; nothing covers the reverse — "these emails came in, here's noise vs. needs-you, here are draft replies for the easy ones" | **3.2 Founder pack** | v1.1 |
+| 4 | Financial pulse (runway, burn, cash position) | 6.8 covers e-commerce analytics only; nothing for general company financial health — burn rate, runway, MRR/ARR trend, upcoming payments | **Section 4 Automation** — scheduled check, same pattern as auto-filing | v1.1/v2 — arguably more universal than the e-commerce feature |
+| 5 | Contract/renewal awareness | 1.2 ingests contracts but nothing actively watches them (renewal dates, notice periods, expiring terms) | **Section 4 Automation** on top of 1.2's existing ingestion | v2 |
+| 6 | Focus-time protection | Nothing manages the calendar defensively — batching non-urgent notifications, protecting deep-work blocks, flagging double-bookings | **3.2 Founder pack**, calendar integration extension | v1.1/v2 |
+
+### 8.2 Strategic/executive "thinking level" gaps
+
+| # | Gap | What's missing | Extends | Recommended roadmap position |
+|---|---|---|---|---|
+| 7 | Decision log | No place where the CEO persona (6.3) thinks a decision through out loud and the system remembers what was decided and why, for later reference | **6.3 Persona pillars + 1.1 Memory core** | v1.1 — natural extension of the persona concept already speced |
+| 8 | Standing competitive/market monitoring | 6.8 does one-time competitor lookups on request; nothing watches on a schedule ("tell me if a competitor changes pricing") | **Section 4 Automation**, candidate not currently listed in 7.2's specialist-agent list | v2 |
+| 9 | Investor/stakeholder relationship tracking | Separate rhythm from general CRM — investor updates, fundraising pipeline, board prep, cap table awareness — not mentioned anywhere | **3.2 Founder pack**, new sub-feature | v2 |
+| 10 | Team pulse (if founder has employees) | Automation layer sends updates *to* employees (already speced) but nothing receives signal back — who's overloaded, who hasn't checked in, 1:1 prep | **3.2 Founder pack + Section 4 Automation** | v2, and only if the target user actually has direct reports — lowest priority of this batch |
+
+### Why this section matters
+Every item above is small individually, but collectively they're the difference between a tool the founder has to **operate** (check tabs, remember to ask) versus a tool that runs **alongside how a founder actually thinks** (surfaces what matters, remembers commitments, protects time). Section 8.1 (daily operations) is the stronger v1.1 candidate set — concrete, high-frequency pain points. Section 8.2 (thinking level) is lower-frequency but higher-leverage — worth prototyping the decision log early since it's cheap and reinforces the persona-pillar feature you've already committed to.
+
+---
+
+## Founder spec batch 5 — "Memorize" button (page snapshot + dated log)
+
+| # | What was described | Maps to | Refinement it adds |
+|---|---|---|---|
+| A | Side-panel "Memorize" button — while on any logged-in page (LinkedIn profile, e-commerce dashboard, etc.), one click summarizes the page and saves it as a note | **6.6 Browser co-pilot + 6.2 Notes command center**, merged | This generalizes the e-commerce daily-tracking idea from 6.8 into a **universal capture action** usable on any page, not just commerce dashboards. |
+| B | Entries organized by date/time — "on each day, if a page was memorized, it stores there" | **1.1 Memory core**, new structured object type: **dated snapshot** | Same pattern as the "open loop"/decision log objects proposed in Section 8 — a snapshot record with `{date, time, source_url, platform, summary}`. Notes page should support a **daily/timeline view** so a person can look back and see what was captured each day. |
+
+### Why this is lower-risk than earlier browser-automation concerns
+
+| Earlier flagged pattern (round 3 audit) | This feature |
+|---|---|
+| Background automation, no user present | **User is actively on the page, initiates the action themselves** |
+| Polling/scraping without a human trigger | **One-shot capture, on demand, no repeated automated interaction** |
+| Closer to bot behavior Meta/LinkedIn actively detect | **Closer to a browser clipper extension (Notion Web Clipper, Evernote Clipper) — reads what's already rendered, doesn't drive the session** |
+
+**Verdict: safe to build as a v1/v1.1 feature.** This doesn't carry the same ban-risk profile as the earlier-flagged autonomous browsing patterns, because the person is present and the action is explicitly triggered, not backgrounded.
+
+### Practical value this unlocks
+- **Manual trend tracking without automation risk** — memorize LinkedIn weekly → follower/engagement trend over time, no background polling needed.
+- **Works for platforms that will never get an API or safe automation path** (LinkedIn is aggressive about scraping detection too) — this sidesteps that entirely, since it's user-present capture, not automated reading.
+- **Doubles as a lightweight answer to the "real-time notification" problem for platforms without one** — instead of automating notification reads, the person just memorizes the page when they check it themselves, and the system remembers so they don't have to.
+
+### Recommended roadmap position
+**v1.1** — this is a natural pairing with the browser co-pilot (6.6) once that's being built for pack #2, and it's genuinely cheap: one button, a summarization call, a dated note. Higher value-to-effort ratio than most of the batch-4 items.

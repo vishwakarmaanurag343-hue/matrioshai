@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.venv/
+venv/
+ENV/
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.vite/
+
+# Tauri / Rust
+apps/desktop/src-tauri/target/
+
+# Data directory (User data must remain private and local, never committed)
+data/
+*.db
+*.sqlite
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MATRIOSHAI Browser Agent</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-area">
+        <div class="logo-glow"></div>
+        <div class="logo-icon">M</div>
+        <div class="brand-text">
+          <h1 class="brand-title">MATRIOSHAI</h1>
+          <span class="brand-subtitle">Browser Agent • Phase 3</span>
+        </div>
+      </div>
+      <div class="env-badge" id="envBadge">Dev</div>
+    </header>
+
+    <!-- Phase 3: Browser Control Status -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">BROWSER CONTROL LAYER</h2>
+        <span class="pulse-indicator" id="globalIndicator"></span>
+      </div>
+
+      <div class="status-card browser-card">
+        <div class="status-item">
+          <div class="status-label">
+            <span class="status-icon">🖥️</span>
+            <span>Windows / Tabs</span>
+          </div>
+          <span class="status-value font-mono" id="valWindowsTabs">0 / 0</span>
+        </div>
+
+        <div class="status-item">
+          <div class="status-label">
+            <span class="status-icon">🧭</span>
+            <span>Navigation</span>
+          </div>
+          <span class="status-value" id="valNavState">IDLE</span>
+        </div>
+
+        <div class="status-item">
+          <div class="status-label">
+            <span class="status-icon">🔗</span>
+            <span>Active Tab</span>
+          </div>
+          <span class="status-value font-mono" id="valActiveTabId">--</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 2: Bridge Status Card -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">COMMUNICATION BRIDGE</h2>
+      </div>
+
+      <div class="status-card bridge-card">
+        <div class="status-item">
+          <div class="status-label">
+            <span class="status-dot dot-pending" id="dotBridge"></span>
+            <span>Bridge State</span>
+          </div>
+          <span class="status-value" id="valBridge">Connecting...</span>
+        </div>
+
+        <div class="status-item">
+          <div class="status-label">
+            <span class="status-dot dot-pending" id="dotAuth"></span>
+            <span>Authentication</span>
+          </div>
+          <span class="status-value" id="valAuth">Authenticating...</span>
+        </div>
+
+        <div class="status-item">
+          <div class="status-label">
+            <span class="status-icon">⚡</span>
+            <span>Latency</span>
+          </div>
+          <span class="status-value font-mono" id="valLatency">-- ms</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Diagnostics Details -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">ACTIVE TAB URL</h2>
+      </div>
+
+      <div class="diagnostic-grid">
+        <div class="diag-item full-width">
+          <span class="diag-value diag-url" id="valActiveTab">Detecting...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Error Banner (hidden if none) -->
+    <div class="error-banner" id="errorBanner" style="display: none;">
+      <span class="error-icon">⚠️</span>
+      <span class="error-text" id="errorText"></span>
+    </div>
+
+    <!-- Actions -->
+    <footer class="footer">
+      <button class="btn-refresh" id="btnRefresh">
+        <span class="btn-icon">↻</span>
+        <span>Refresh Browser State</span>
+      </button>
+      <span class="footer-note" id="lastUpdated">Updated just now</span>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.ts"></script>
+</body>
+</html>

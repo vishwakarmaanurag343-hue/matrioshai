@@ -87,7 +87,6 @@ from app.browser.state_store import (
 from app.browser.world_model import world_model_engine
 from app.browser.action_engine import action_engine
 from app.browser.verification_engine import verification_engine
-from app.browser.agent_loop import agent_execution_loop
 from app.browser.transaction_engine import transaction_engine
 from app.browser.security_engine import security_engine
 from app.browser.runtime import matrioshai_runtime
@@ -1214,41 +1213,6 @@ class BrowserManager:
     def get_verification(self, verification_id: str) -> Optional[VerificationResult]:
         """Get verification result by ID."""
         return self.state_store.verifications.get(verification_id)
-
-    # ------------------------------------------------------------------------
-    # PHASE 10: AGENT PLANNING & EXECUTION LOOP METHODS
-    # ------------------------------------------------------------------------
-
-    def create_agent_task(self, user_request: str, priority: TaskPriority = TaskPriority.NORMAL) -> AgentTask:
-        """Create and normalize a new agent task from user request."""
-        return agent_execution_loop.create_task(user_request, priority=priority)
-
-    async def start_agent_task(self, task_id: str, max_iterations: int = 30) -> AgentResult:
-        """Execute closed-loop agent execution on a task."""
-        return await agent_execution_loop.run_task_loop(task_id, max_iterations=max_iterations)
-
-    def pause_agent_task(self, task_id: str) -> Optional[AgentTask]:
-        """Pause a running agent task."""
-        return agent_execution_loop.pause_task(task_id)
-
-    async def resume_agent_task(self, task_id: str) -> AgentResult:
-        """Resume a paused agent task after state reconciliation."""
-        return await agent_execution_loop.resume_task(task_id)
-
-    def abort_agent_task(self, task_id: str) -> Optional[AgentTask]:
-        """Abort an active agent task."""
-        return agent_execution_loop.abort_task(task_id)
-
-    def get_agent_task(self, task_id: str) -> Optional[AgentTask]:
-        """Get agent task by ID."""
-        return self.state_store.agent_tasks.get(task_id)
-
-    def get_agent_events(self, task_id: Optional[str] = None, limit: int = 50) -> List[AgentEvent]:
-        """Retrieve recent agent events."""
-        events = self.state_store.agent_events
-        if task_id:
-            events = [e for e in events if e.task_id == task_id]
-        return events[-limit:]
 
     # ------------------------------------------------------------------------
     # PHASE 12: REAL-WORLD TRANSACTION & BOOKING ENGINE METHODS

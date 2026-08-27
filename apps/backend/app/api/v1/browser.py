@@ -9,7 +9,7 @@ from app.browser.gateway import browser_gateway
 from app.browser.filter_list import filter_list_manager
 from app.browser.bridge import browser_bridge_server
 from app.browser.manager import browser_manager
-from app.llm.provider_chain import call_llm  # unified provider chain (OpenRouter -> NVIDIA -> Ollama)
+from app.browser.state_store import SecurityRequest
 
 router = APIRouter(prefix="/browser", tags=["Native Browser"])
 
@@ -174,341 +174,6 @@ def clear_browser_history(profile_id: Optional[str] = None):
         return {"status": "ok", "cleared": True}
     finally:
         db.close()
-
-class BrowserAiAssistRequest(BaseModel):
-    action: str  # "Summarize", "Research", "Extract", "Find", or custom query
-    url: str
-    title: str
-    headings: List[str] = []
-    text_blocks: List[str] = []
-    interactive_elements: List[Dict[str, Any]] = []
-    interactive_elements_count: int = 0
-
-@router.post("/ai-assist")
-async def browser_ai_assist(req: BrowserAiAssistRequest):
-    """
-    Connects Native Browser Page Context and Interactive Elements to OpenRouter LLM with Tool Calling
-    """
-    import urllib.parse
-    import json
-
-    # Extract search query if present in URL
-    search_query = ""
-    try:
-        parsed_url = urllib.parse.urlparse(req.url)
-        params = urllib.parse.parse_qs(parsed_url.query)
-        for key in ["q", "query", "k", "search_query", "searchTerm"]:
-            if key in params and params[key]:
-                search_query = params[key][0]
-                break
-    except Exception:
-        pass
-
-    # Build rich context about what is currently on screen
-    screen_context_parts = [
-        f"Active Webpage URL: {req.url}",
-        f"Active Page Title: {req.title}",
-    ]
-    if search_query:
-        screen_context_parts.append(f"User Search Query / Terms: '{search_query}'")
-    if req.headings:
-        screen_context_parts.append(f"Key Headings on Screen:\n" + "\n".join(f"  • {h}" for h in req.headings[:15]))
-    if req.text_blocks:
-        screen_context_parts.append(f"Visible Content Snippets & Search Results:\n" + "\n".join(f"  • {t}" for t in req.text_blocks[:25]))
-
-    # List interactive elements for clicking / typing
-    if req.interactive_elements:
-        elem_lines = []
-        for el in req.interactive_elements[:45]:
-            el_id = el.get("element_id", "")
-            role = el.get("role", "element")
-            name = el.get("name", "")
-            href = el.get("href", "")
-            if href:
-                elem_lines.append(f"  • [{el_id}] {role}: '{name}' -> {href}")
-            else:
-                elem_lines.append(f"  • [{el_id}] {role}: '{name}'")
-        screen_context_parts.append("Interactive Elements On Screen (Clickable/Interactable):\n" + "\n".join(elem_lines))
-
-    full_screen_context = "\n".join(screen_context_parts)
-
-    system_prompt = (
-        "You are Matrioshai AI Copilot, an autonomous browser assistant with live screen vision and browser execution tools.\n\n"
-        "### CRITICAL ACTION POLICY:\n"
-        "1. When the user asks you to open, click, view, visit, or book anything on the page (e.g. 'open the best and book for me', 'open the 3rd website', 'click the first result', 'open Skoda Kylaq'), you MUST IMMEDIATELY invoke the appropriate tool (`click` or `navigate`).\n"
-        "2. Do NOT output a monologue or text explanation without calling a tool when an action is requested. EMIT THE TOOL CALL DIRECTLY.\n"
-        "3. When interactive elements are listed under 'Interactive Elements On Screen', select the most relevant result (e.g. the official website or top result) and call `click(element_id)`.\n"
-        "4. NEVER guess or hallucinate URLs with `navigate` when the link or search result exists in the interactive elements list — ALWAYS call `click(element_id)`.\n"
-        "5. If the user asks a QUESTION (what/why/where/how/list/find-information) that can be answered from the page context above, ANSWER IN PLAIN TEXT — do NOT call any tool. Tools are ONLY for performing actions on the page."
-    )
-
-    browser_tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "click",
-                "description": "Click an interactive element (search result link, website link, button, tab) on the current webpage using its element_id (e.g. 'el_0', 'el_1'). ALWAYS use this tool instead of 'navigate' when opening search results or clicking on-screen links.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "element_id": {
-                            "type": "string",
-                            "description": "The exact element_id of the element to click (e.g. 'el_0', 'el_1')"
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "Short description of the link or button being clicked"
-                        }
-                    },
-                    "required": ["element_id"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "navigate",
-                "description": "Navigate directly to a specific URL provided explicitly by the user or for initial domain visits. DO NOT use this tool to open search results or links found on the page — use 'click' with the element_id instead.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "url": {
-                            "type": "string",
-                            "description": "Explicit http/https URL to navigate to"
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "Description of the destination"
-                        }
-                    },
-                    "required": ["url"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "type",
-                "description": "Type text into a search box, input field, or textarea on the current page",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "element_id": {
-                            "type": "string",
-                            "description": "The element_id of the input field"
-                        },
-                        "text": {
-                            "type": "string",
-                            "description": "The text to type into the field"
-                        }
-                    },
-                    "required": ["element_id", "text"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "scroll",
-                "description": "Scroll the active webpage up or down",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "direction": {
-                            "type": "string",
-                            "enum": ["down", "up"],
-                            "description": "Direction to scroll the page"
-                        }
-                    },
-                    "required": ["direction"]
-                }
-            }
-        }
-    ]
-
-    clean_action = req.action.replace("Custom Query: ", "").strip()
-
-    if clean_action == "Summarize":
-        user_prompt = f"[Active Screen Context]\n{full_screen_context}\n\nPlease summarize this webpage concisely with the key takeaways."
-    elif clean_action == "Extract":
-        user_prompt = f"[Active Screen Context]\n{full_screen_context}\n\nPlease extract key facts, entities, data, and actionable items from this webpage."
-    elif clean_action == "Research":
-        user_prompt = f"[Active Screen Context]\n{full_screen_context}\n\nPlease analyze this page for core topics, arguments, and related research questions."
-    elif clean_action == "Find":
-        user_prompt = f"[Active Screen Context]\n{full_screen_context}\n\nPlease list the main sections and tools found on this webpage."
-    else:
-        # User typed a direct question or command
-        is_greeting = clean_action.lower() in ["hi", "hii", "hello", "hey", "sup", "how are you", "good morning", "good evening"]
-        if is_greeting:
-            user_prompt = clean_action
-        else:
-            user_prompt = f"[Active Screen & Webpage Context]\n{full_screen_context}\n\n[User Message]: {clean_action}"
-
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt}
-    ]
-
-    print("\n========== [EXACT RAW PAYLOAD SENT TO LLM] ==========", flush=True)
-    print(json.dumps({"messages": messages, "tools": browser_tools}, indent=2), flush=True)
-    print("======================================================\n", flush=True)
-
-    try:
-        print(f"[AI_TRACE] model request started: messages={len(messages)} tools={len(browser_tools)} prompt_chars={len(user_prompt)}", flush=True)
-        reply, tool_call = await call_llm(messages, temperature=0.2, tools=browser_tools)
-        print(f"[AI_TRACE] call_llm returned: reply_len={len(reply or '')} reply_prefix={(reply or '')[:120]!r} tool_call={tool_call.get('name') if tool_call else None}", flush=True)
-        if reply and "<think>" in reply and "</think>" in reply:
-            reply = re.sub(r'<think>.*?</think>', '', reply, flags=re.DOTALL).strip()
-
-        # Never return a silent success with nothing in it: the frontend skips
-        # appending any assistant message when response is empty, which left
-        # the chat UI waiting forever. Surface an explicit error instead.
-        if not (reply and reply.strip()) and not tool_call:
-            return {
-                "status": "error",
-                "response": "All model providers returned an empty response (primary model may be rate-limited upstream). Please retry shortly.",
-                "tool_call": None
-            }
-
-        response_payload = {
-            "status": "ok",
-            "response": reply.strip() if reply else "",
-            "tool_call": tool_call
-        }
-        return response_payload
-    except Exception as e:
-        return {"status": "error", "response": f"LLM Error: {str(e)}", "tool_call": None}
-
-@router.post("/debug/browser-context")
-async def debug_browser_context(req: BrowserAiAssistRequest):
-    """
-    Debug Endpoint: Returns raw received URL, Title, and Extracted DOM Content
-    """
-    import urllib.parse
-    search_query = ""
-    try:
-        parsed = urllib.parse.urlparse(req.url)
-        params = urllib.parse.parse_qs(parsed.query)
-        for key in ["q", "query", "k", "search_query"]:
-            if key in params:
-                search_query = params[key][0]
-                break
-    except Exception:
-        pass
-
-    return {
-        "raw_received_url": req.url,
-        "raw_received_title": req.title,
-        "parsed_search_query": search_query,
-        "headings_count": len(req.headings),
-        "headings": req.headings,
-        "text_blocks_count": len(req.text_blocks),
-        "text_blocks_sample": req.text_blocks[:10],
-        "interactive_elements_count": req.interactive_elements_count,
-    }
-
-class AgentPlanRequest(BaseModel):
-    user_goal: str
-    url: str
-    title: str
-    headings: List[str] = []
-    text_blocks: List[str] = []
-    interactive_elements: List[Dict[str, Any]] = []
-    action_history: List[str] = []
-
-@router.post("/plan-agent")
-async def plan_agent_task(req: AgentPlanRequest):
-    """
-    ReAct-Style Autonomous Agent Planner using NVIDIA NIM LLM
-    """
-    elements_desc = "\n".join(
-        f"- ID: {el.get('element_id')} | Role: {el.get('role')} | Name: '{el.get('name')}' | Selector: {el.get('selector')}"
-        for el in req.interactive_elements[:30]
-    )
-
-    history_desc = "\n".join(f"- {h}" for h in req.action_history) if req.action_history else "No previous actions."
-
-    prompt = f"""You are an autonomous browser agent following the ReAct (Reason, Act, Observe) framework.
-User Goal: "{req.user_goal}"
-Current Webpage: {req.title} ({req.url})
-
-Action History:
-{history_desc}
-
-Current Headings:
-{', '.join(req.headings[:10])}
-
-Current Page Snippets:
-{chr(10).join('- ' + t for t in req.text_blocks[:10])}
-
-Available Interactive Elements on Current Page:
-{elements_desc if elements_desc else "No interactive elements detected."}
-
-Instructions:
-1. Reason about the next logical steps to achieve the user's goal.
-2. Return ONLY a valid JSON array of 1 to 5 steps. No markdown formatting outside the JSON, no explanations.
-3. Each step object must have:
-   - "step_id": string (e.g. "step_1")
-   - "tool": string (one of: "browser.type", "browser.click", "browser.scroll", "browser.navigate", "browser.extract", "browser.done")
-   - "target": string or null (the exact element_id like "el_1" from the list above)
-   - "value": string or null (text to type or URL to navigate)
-   - "description": string (clear summary of this step)
-   - "risk_level": string ("ReadOnly", "Low", "Medium", "High")
-   - "needs_replan": boolean (true if the agent must observe page changes after this step)
-
-Example JSON Output:
-[
-  {{"step_id": "step_1", "tool": "browser.type", "target": "el_1", "value": "Rust", "description": "Type 'Rust' into search box", "risk_level": "Medium", "needs_replan": false}},
-  {{"step_id": "step_2", "tool": "browser.click", "target": "el_2", "value": null, "description": "Click search button", "risk_level": "Medium", "needs_replan": true}}
-]
-"""
-
-    messages = [
-        {"role": "system", "content": "You are a precise autonomous browser automation planner. Always output valid JSON array."},
-        {"role": "user", "content": prompt}
-    ]
-
-    try:
-        reply = await call_llm(messages, temperature=0.1)
-        if "<think>" in reply and "</think>" in reply:
-            reply = re.sub(r'<think>.*?</think>', '', reply, flags=re.DOTALL).strip()
-        
-        json_match = re.search(r'\[\s*\{.*\}\s*\]', reply, flags=re.DOTALL)
-        if json_match:
-            steps_data = json.loads(json_match.group(0))
-        else:
-            steps_data = json.loads(reply.strip())
-            
-        return {"status": "ok", "steps": steps_data}
-    except Exception as e:
-        # Fallback to smart goal-driven heuristic plan if JSON parse fails
-        fallback_steps = [
-            {
-                "step_id": "step_1",
-                "tool": "browser.extract",
-                "target": None,
-                "value": None,
-                "description": f"Extract live page context for goal: '{req.user_goal}'",
-                "risk_level": "ReadOnly",
-                "needs_replan": False
-            },
-            {
-                "step_id": "step_2",
-                "tool": "browser.scroll",
-                "target": None,
-                "value": None,
-                "description": "Scroll down to examine full document and search results",
-                "risk_level": "Low",
-                "needs_replan": True
-            }
-        ]
-        return {"status": "fallback", "steps": fallback_steps, "error": str(e)}
-
-
-
-
-
-
 
 @router.get("/search")
 async def search_web_results(q: str, engine: Optional[str] = "duckduckgo"):
@@ -1658,13 +1323,6 @@ async def get_browser_workflow_checkpoints():
 # PHASE 10: AGENT PLANNING & EXECUTION LOOP ENDPOINTS
 # ============================================================================
 
-class CreateAgentTaskRequest(BaseModel):
-    user_request: str
-    priority: Optional[str] = "NORMAL"
-
-class StartAgentTaskRequest(BaseModel):
-    max_iterations: Optional[int] = 30
-
 # ---------------------------------------------------------------------------
 # UNIFIED AGENT RUNTIME — per-iteration reasoning (the Harness brain).
 # The frontend BrowserAgentHarness drives the loop: it observes the live
@@ -1705,33 +1363,35 @@ def _append_run_index(record: Dict[str, Any]) -> None:
 
 
 @router.post("/agent/metrics/start")
-async def mark_agent_run_start(payload: Dict[str, Any]):
+def agent_metrics_start(payload: Dict[str, Any]):
     """
-    PHASE 0 RUN_START marker: records task start (run_id/task_id/goal/ts)
-    to benchmarks/runs/index.jsonl and prints an explicit log boundary so
-    each regression run has clean [RUN_START]/[RUN_END] brackets.
+    PHASE 0 contract: Harness emits a START event before taking the first
+    observation so long-running benchmarks have unambiguous run boundaries.
     """
-    import json
     try:
-        record = {
+        run_id = str(payload.get("run_id", "unknown_run"))[:64]
+        task_id = str(payload.get("task_id", "unknown_task"))[:64]
+        goal = str(payload.get("user_goal", ""))[:512]
+        _append_run_index({
             "event": "RUN_START",
-            "run_id": str(payload.get("run_id", "unknown_run"))[:64],
-            "task_id": str(payload.get("task_id", "unknown_task"))[:64],
-            "goal": str(payload.get("goal", ""))[:300],
+            "run_id": run_id,
+            "task_id": task_id,
+            "user_goal": goal,
             "ts": datetime.now(timezone.utc).isoformat(),
-        }
-        _append_run_index(record)
-        print(f"[RUN_START] run_id={record['run_id']} task_id={record['task_id']} goal={record['goal']!r}", flush=True)
+        })
+        print(f"[RUN_START] run_id={run_id} task_id={task_id} goal={goal!r}", flush=True)
         return {"status": "ok"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"run-start mark failed: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"metrics start failed: {type(e).__name__}: {e}")
 
 
 @router.post("/agent/metrics")
-async def save_agent_metrics(payload: Dict[str, Any]):
+def agent_metrics_sink(payload: Dict[str, Any]):
     """
-    PHASE 0 metrics ledger sink: persists one JSON artifact per task run
-    (success or failure) under benchmarks/runs/. Measurement only.
+    PHASE 0 contract: client emits end-of-run rollup (wall clock, step breakdown,
+    perception ladder hit rates, token cost, failure mode). Saved to
+    benchmarks/runs/{timestamp}_{run_id}_{task_id}_{status}.json and logged
+    to benchmarks/runs/index.jsonl.
     """
     import json
 
@@ -1760,104 +1420,6 @@ async def save_agent_metrics(payload: Dict[str, Any]):
         return {"status": "ok", "path": str(path)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"metrics persist failed: {type(e).__name__}: {e}")
-
-
-@router.post("/agent/tasks")
-async def create_browser_agent_task(req: CreateAgentTaskRequest):
-    """
-    Create a new browser agent task and normalize user goal.
-    """
-    try:
-        priority_val = TaskPriority(req.priority) if req.priority in TaskPriority._value2member_map_ else TaskPriority.NORMAL
-        task = browser_manager.create_agent_task(
-            user_request=req.user_request,
-            priority=priority_val
-        )
-        return {"status": "ok", "task": task.model_dump()}
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
-@router.post("/agent/tasks/{task_id}/start")
-async def start_browser_agent_task(task_id: str, req: Optional[StartAgentTaskRequest] = None):
-    """
-    Start closed-loop agent execution on a task.
-    """
-    try:
-        max_iter = req.max_iterations if req and req.max_iterations else 30
-        res = await browser_manager.start_agent_task(task_id=task_id, max_iterations=max_iter)
-        return {"status": "ok", "result": res.model_dump()}
-    except ValueError as ve:
-        raise HTTPException(status_code=404, detail=str(ve))
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
-@router.post("/agent/tasks/{task_id}/pause")
-async def pause_browser_agent_task(task_id: str):
-    """
-    Pause a running agent task.
-    """
-    try:
-        task = browser_manager.pause_agent_task(task_id)
-        if not task:
-            raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
-        return {"status": "ok", "task": task.model_dump()}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
-@router.post("/agent/tasks/{task_id}/resume")
-async def resume_browser_agent_task(task_id: str):
-    """
-    Resume a paused agent task after state reconciliation.
-    """
-    try:
-        res = await browser_manager.resume_agent_task(task_id)
-        return {"status": "ok", "result": res.model_dump()}
-    except ValueError as ve:
-        raise HTTPException(status_code=404, detail=str(ve))
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
-@router.post("/agent/tasks/{task_id}/abort")
-async def abort_browser_agent_task(task_id: str):
-    """
-    Abort an active agent task.
-    """
-    try:
-        task = browser_manager.abort_agent_task(task_id)
-        if not task:
-            raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
-        return {"status": "ok", "task": task.model_dump()}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
-@router.get("/agent/tasks/{task_id}")
-async def get_browser_agent_task(task_id: str):
-    """
-    Get current task state, plan, progress, and memory.
-    """
-    task = browser_manager.get_agent_task(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
-    return {"status": "ok", "task": task.model_dump()}
-
-@router.get("/agent/events")
-async def get_browser_agent_events(task_id: Optional[str] = None, limit: int = 50):
-    """
-    Get recent agent execution stream events.
-    """
-    try:
-        events = browser_manager.get_agent_events(task_id=task_id, limit=limit)
-        return {
-            "status": "ok",
-            "events": [e.model_dump() for e in events],
-            "count": len(events)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
 
 
 # ============================================================================

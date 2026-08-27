@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Terminal, AlertCircle, RefreshCw } from "lucide-react";
+import { API_BASE_URL } from "../../../services/api/client";
 
 export const ObservabilityPanel: React.FC = () => {
   const [dlqItems, setDlqItems] = useState<any[]>([]);
@@ -7,7 +8,7 @@ export const ObservabilityPanel: React.FC = () => {
 
   const fetchLogs = async () => {
     try {
-      const dlqRes = await fetch("http://127.0.0.1:8000/api/v1/browser/runtime/dead-letter-queue?limit=20");
+      const dlqRes = await fetch(`${API_BASE_URL}/browser/runtime/dead-letter-queue?limit=20`);
       if (dlqRes.ok) {
         const data = await dlqRes.json();
         setDlqItems(data.dead_letter_items || []);

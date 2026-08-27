@@ -1,0 +1,123 @@
+{
+  "run_id": "run_mtau0avt_3pcw",
+  "task_id": "goal_1787795052536",
+  "goal": "Go to https://github.com/login and stop for human takeover.",
+  "started_at": "2026-08-27T01:44:12.536Z",
+  "iterations": 1,
+  "observations": 1,
+  "actions": 0,
+  "verified_actions": 0,
+  "failed_actions": 0,
+  "failed_observations": 0,
+  "failed_strategies": [],
+  "strategy_switches": 0,
+  "repeated_actions": 0,
+  "repeated_strategies": 0,
+  "recovery_attempts": 0,
+  "successful_recoveries": 0,
+  "tabs_opened": 0,
+  "tabs_switched": 0,
+  "model_calls": 5,
+  "model_latency_ms_total": 422713,
+  "tool_calls": 0,
+  "human_interventions": 1,
+  "evidence_items": 0,
+  "verified_evidence_items": 0,
+  "observation_latencies_ms": [
+    6
+  ],
+  "reasoning_latencies_ms": [
+    105166,
+    71344,
+    42413,
+    57978,
+    145812
+  ],
+  "action_latencies_ms": [],
+  "max_no_progress_streak": 0,
+  "events": 8,
+  "final_status": "cancelled",
+  "final_reason": "Task cancelled by user.",
+  "finished_at": "2026-08-27T01:44:55.767Z",
+  "wall_clock_ms": 43231,
+  "steps": [
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:44:12.542Z",
+      "url": "https://www.google.com/",
+      "world_version": 1,
+      "action": "OBSERVE",
+      "strategy": "dom",
+      "result": "observation",
+      "verified": true,
+      "failure_class": null,
+      "recovery": false,
+      "latency_ms": 6
+    },
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:44:53.631Z",
+      "url": "",
+      "world_version": -1,
+      "action": "HUMAN_STOP",
+      "result": "not_dispatched",
+      "verified": false,
+      "recovery": false
+    },
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:44:54.955Z",
+      "url": "",
+      "world_version": -1,
+      "action": "REASON",
+      "result": "reasoning_failed",
+      "verified": false,
+      "failure_class": "MODEL_ERROR",
+      "recovery": true
+    },
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:44:54.957Z",
+      "url": "",
+      "world_version": -1,
+      "action": "REASON",
+      "result": "reasoning_failed",
+      "verified": false,
+      "failure_class": "MODEL_ERROR",
+      "recovery": true
+    },
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:44:54.957Z",
+      "url": "",
+      "world_version": -1,
+      "action": "REASON",
+      "result": "reasoning_failed",
+      "verified": false,
+      "failure_class": "MODEL_ERROR",
+      "recovery": true
+    },
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:44:54.958Z",
+      "url": "",
+      "world_version": -1,
+      "action": "REASON",
+      "result": "reasoning_failed",
+      "verified": false,
+      "failure_class": "MODEL_ERROR",
+      "recovery": true
+    },
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:44:54.958Z",
+      "url": "",
+      "world_version": -1,
+      "action": "REASON",
+      "result": "reasoning_failed",
+      "verified": false,
+      "failure_class": "MODEL_ERROR",
+      "recovery": true
+    }
+  ]
+}

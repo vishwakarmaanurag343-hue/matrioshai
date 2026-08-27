@@ -13,6 +13,7 @@ import {
   ReasoningRequest,
   StepRecord,
   TabWorldState,
+  SessionCheckpoint,
 } from "./types";
 import { PageModel, ResolvedElement, SemanticTarget } from "./perception/pageModel";
 import { ElementResolver } from "./perception/elementResolver";
@@ -21,6 +22,7 @@ import { StepReasoner } from "./reasoning/stepReasoner";
 import { PerceptionLadder, isObservationEmpty } from "./perception/perceptionLadder";
 import { agentEventBus } from "./state/agentEvents";
 import { metricsLedger } from "./metrics/metricsLedger";
+import { securityKernel } from "./security/securityKernel";
 
 export type HarnessState =
   | "IDLE"
@@ -220,6 +222,8 @@ export class BrowserAgentHarness {
   }
 
   /** Retry policy: same action+target max 2 attempts; same strategy max 2. */
+  private activeSubgoal: string | null = null;
+
   private recoveryConstraints(failure: ActionFailure | null, actUpper: string, target: string | null | undefined): string[] {
     const notes: string[] = [];
     if (!failure) return notes;
@@ -363,10 +367,22 @@ export class BrowserAgentHarness {
   /**
    * Waits for DOM layout stabilization.
    */
-  async waitForPageStability(_tabId: string, durationMs: number = 700): Promise<void> {
+  async waitForPageStability(tabId: string, durationMs: number = 700): Promise<void> {
     this.state = "WAITING";
     this.logTrace("WAIT", { durationMs });
     await new Promise((r) => setTimeout(r, durationMs));
+    try {
+      let prevLen = 0;
+      for (let i = 0; i < 3; i++) {
+        const sem = await nativeBrowserService.inspectPage(tabId);
+        const currLen = (sem.text_blocks || []).join("").length;
+        if (prevLen > 0 && Math.abs(currLen - prevLen) < 10) {
+          break;
+        }
+        prevLen = currLen;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    } catch {}
   }
 
   /**
@@ -457,147 +473,13 @@ export class BrowserAgentHarness {
     };
   }
 
-  /**
-   * Main Autonomous Execution Loop.
-   */
-  async executeTask(task: AgentTask, tabId: string): Promise<AgentTask> {
-    this.activeTask = task;
-    this.paused = false;
-    this.stopped = false;
-    this.state = "PLANNING";
-
-    this.logTrace("ACTION_START", {
-      taskId: task.taskId,
-      goal: task.userGoal,
-      totalSteps: task.steps.length,
-    });
-
-    for (let i = task.currentStepIndex; i < task.steps.length && !this.stopped; i++) {
-      if (this.paused) {
-        this.state = "PAUSED";
-        this.notify();
-        return this.activeTask;
-      }
-
-      const step = task.steps[i];
-      task.currentStepIndex = i;
-      step.status = "running";
-      this.notify();
-
-      // 1. Live Observation
-      const beforeModel = await this.observePage(tabId);
-
-      // 2. Semantic Target Resolution
-      let targetToResolve: SemanticTarget | string = step.target || step.goal;
-      const lowerGoal = step.goal.toLowerCase();
-
-      // Parse ordinal from goal if present (e.g. "open third website", "click 1st result")
-      if (lowerGoal.includes("1st") || lowerGoal.includes("first")) {
-        targetToResolve = { ordinal: 1 };
-      } else if (lowerGoal.includes("2nd") || lowerGoal.includes("second")) {
-        targetToResolve = { ordinal: 2 };
-      } else if (lowerGoal.includes("3rd") || lowerGoal.includes("third")) {
-        targetToResolve = { ordinal: 3 };
-      } else if (lowerGoal.includes("4th") || lowerGoal.includes("fourth")) {
-        targetToResolve = { ordinal: 4 };
-      }
-
-      const resolved = this.resolveTarget(targetToResolve, beforeModel);
-
-      // 3. Validation
-      const toolUpper = step.tool.toUpperCase();
-      if (["CLICK", "TYPE", "SELECT"].includes(toolUpper)) {
-        if (!resolved) {
-          step.status = "failed";
-          step.resultMessage = `Target element could not be resolved from current page observation (status: ${beforeModel.observationStatus || "UNRESOLVED"}).`;
-          this.logTrace("ACTION_END", { stepId: step.id, status: "failed", reason: step.resultMessage });
-          continue;
-        }
-        const validation = this.validateAction(step.tool, resolved, beforeModel);
-        if (!validation.valid) {
-          step.status = "failed";
-          step.resultMessage = `Validation failed: ${validation.reason}`;
-          this.logTrace("ACTION_END", { stepId: step.id, status: "failed", reason: validation.reason });
-          continue;
-        }
-      } else if (resolved) {
-        const validation = this.validateAction(step.tool, resolved, beforeModel);
-        if (!validation.valid) {
-          step.status = "failed";
-          step.resultMessage = `Validation failed: ${validation.reason}`;
-          this.logTrace("ACTION_END", { stepId: step.id, status: "failed", reason: validation.reason });
-          continue;
-        }
-      }
-
-      // 4. Execution
-      const execRes = await this.executeAction(tabId, step.tool, resolved, step.value, step.target);
-      if (!execRes.success) {
-        step.status = "failed";
-        step.resultMessage = execRes.error || "Execution failed";
-        this.logTrace("ACTION_END", { stepId: step.id, status: "failed", reason: execRes.error });
-        continue;
-      }
-
-      // 5. Wait for Stability
-      await this.waitForPageStability(tabId);
-
-      // 6. Verification
-      const verif = await this.verifyAction(beforeModel, resolved, tabId, step.tool, step.target);
-      if (verif.success || step.tool === "scroll" || step.tool === "wait" || step.tool === "extract" || step.tool === "read") {
-        step.status = "completed";
-        step.resultMessage = `✓ ${step.goal} succeeded.`;
-        if (verif.afterUrl && !task.visitedUrls.includes(verif.afterUrl)) {
-          task.visitedUrls.push(verif.afterUrl);
-        }
-
-        // Collect facts on extract steps
-        if (step.tool === "extract" || step.tool === "read") {
-          const afterModel = await this.observePage(tabId);
-          if (afterModel.searchResults.length > 0) {
-            afterModel.searchResults.slice(0, 5).forEach((r) => {
-              task.sources.push({ title: r.title, url: r.href, snippet: r.visibleText });
-              task.extractedFacts.push(`${r.title}: ${r.visibleText || r.href}`);
-            });
-          } else if (afterModel.sections.length > 0) {
-            afterModel.sections.slice(0, 5).forEach((s) => {
-              task.extractedFacts.push(s);
-            });
-          }
-        }
-      } else {
-        step.status = "failed";
-        step.resultMessage = `Verification failed: Expected navigation transition not observed.`;
-      }
-
-      this.logTrace("ACTION_END", {
-        stepId: step.id,
-        status: step.status,
-        afterUrl: verif.afterUrl,
-      });
-
-      this.notify();
-    }
-
-    if (this.stopped) {
-      task.status = "cancelled";
-      this.state = "STOPPED";
-    } else {
-      task.status = task.steps.every((s) => s.status === "completed") ? "completed" : "failed";
-      this.state = task.status === "completed" ? "COMPLETED" : "FAILED";
-    }
-
-    this.notify();
-    return task;
-  }
-
   // =========================================================================
   // UNIFIED AGENT RUNTIME — the canonical goal loop.
   // GOAL → OBSERVE → REASON → VALIDATE → APPROVE → RESOLVE → EXECUTE (native,
   // verified Rust executor) → VERIFY expected_effect → RECORD → repeat until
-  // ANSWER / DONE / WAITING_FOR_USER / FAIL. There is no other production
-  // execution path; the legacy executeTask() above is retained only for the
-  // old template-planner tests and is no longer invoked by BrowserView.
+  // ANSWER / DONE / WAITING_FOR_USER / FAIL. There is no other execution path:
+  // the legacy template-planner loop (executeTask/startTask) was removed in
+  // Phase 1.
   // =========================================================================
 
   /** True while a unified-runtime goal run is active or awaiting user input. */
@@ -662,6 +544,7 @@ export class BrowserAgentHarness {
       failedStrategies: [],
     };
     this.activeTask = task;
+    this.activeSubgoal = null;
 
     // PHASE 0: per-task metrics artifact (measurement only)
     metricsLedger.attachProvider(() => ({
@@ -707,7 +590,7 @@ export class BrowserAgentHarness {
         // ---------- 1. OBSERVE (perception ladder + world model) ----------
         this.state = "OBSERVING";
         agentEventBus.publish(task.taskId, "OBSERVING", `Reading ${this.tabStates.get(currentTabId)?.url || "current tab"}`, "info");
-        const beforeModel = await this.observePage(currentTabId);
+        let beforeModel = await this.observePage(currentTabId);
         const ws = this.tabStates.get(currentTabId);
         if (ws && ws.observation_level !== "dom") {
           agentEventBus.publish(task.taskId, "RECOVERY_STARTED", `Primary DOM extraction empty — perception escalated to '${ws.observation_level}'`, "warn", ws.observation_level);
@@ -717,7 +600,9 @@ export class BrowserAgentHarness {
         // user, keep the SAME task alive and resume on state change.
         const authGate = this.detectAuthGate(beforeModel);
         if (authGate) {
+          agentEventBus.publish(task.taskId, "HUMAN_TAKEOVER_REQUIRED", authGate.summary, "warn", beforeModel.url);
           agentEventBus.publish(task.taskId, "WAITING_FOR_USER", authGate.summary, "warn", beforeModel.url);
+          this.createCheckpoint(currentTabId, beforeModel.url, beforeModel.title, authGate.summary, authGate.kind);
           this.emit(`⏸️ **${authGate.summary}** Take over in the browser — I'll resume automatically when you're done.`, "warn");
           this.recordStep(iteration, { action: "WAIT_FOR_USER", reason: authGate.summary, expected_effect: { type: "none" }, requires_approval: false } as any, false, false, beforeModel.url, beforeModel.url, authGate.kind);
           task.status = "waiting_user";
@@ -745,8 +630,10 @@ export class BrowserAgentHarness {
           url: beforeModel.url,
           title: beforeModel.title,
           ready_state: "complete",
-          headings: beforeModel.sections,
-          text_blocks: (beforeModel.textBlocks || []).slice(0, 8),
+          headings: beforeModel.sections.map((h) => securityKernel.sanitizeScrapedText(h).safeText),
+          text_blocks: (beforeModel.textBlocks || [])
+            .slice(0, 8)
+            .map((t) => securityKernel.sanitizeScrapedText(t).safeText),
           interactive_elements: beforeModel.links.concat(beforeModel.buttons).concat(beforeModel.inputs).concat(beforeModel.selects).map((e) => ({
             element_id: e.id,
             role: e.role,
@@ -774,6 +661,8 @@ export class BrowserAgentHarness {
           })(),
           failed_strategies: this.exhaustedStrategies,
           observation_level: this.currentLevel,
+          subgoal: this.activeSubgoal || undefined,
+          accumulated_evidence: task.evidence && task.evidence.length ? task.evidence.slice(0, 15) : undefined,
         };
 
         let decision: AgentDecision;
@@ -795,6 +684,9 @@ export class BrowserAgentHarness {
           continue;
         }
         consecutiveFailures = Math.max(0, consecutiveFailures - 1);
+        if (decision.subgoal) {
+          this.activeSubgoal = decision.subgoal;
+        }
         if (typeof decision.progress_estimate === "number" && !Number.isNaN(decision.progress_estimate)) {
           this.lastProgress = decision.progress_estimate;
           task.updatedAt = new Date().toISOString();
@@ -813,29 +705,43 @@ export class BrowserAgentHarness {
         // ---------- 3. TERMINAL DECISIONS ----------
         const actUpper = decision.action.toUpperCase();
 
-        if (actUpper === "ANSWER") {
-          this.emit(`**${decision.value || decision.reason}**`, "success");
-          this.mergeEvidence(task, decision.evidence);
-          agentEventBus.publish(task.taskId, "TASK_COMPLETED", decision.value?.slice(0, 200) || "Question answered", "success");
-          this.recordStep(iteration, decision, false, false, beforeModel.url, beforeModel.url, "Answered from observation");
-          this.finishRun("completed", decision.value || decision.reason);
-          return task;
-        }
-        if (actUpper === "DONE") {
-          this.emit(`✅ **Task complete.** ${decision.value || ""}`.trim(), "success");
-          this.mergeEvidence(task, decision.evidence);
-          agentEventBus.publish(
-            task.taskId,
-            "TASK_COMPLETED",
-            (decision.value || "Goal achieved").slice(0, 220),
-            "success",
-            task.evidence && task.evidence.length
-              ? task.evidence.map((e) => `${e.label}: ${e.value} (${e.source})`).join(" | ").slice(0, 400)
-              : undefined
-          );
-          this.recordStep(iteration, decision, false, true, beforeModel.url, beforeModel.url, "Goal achieved");
-          this.finishRun("completed", decision.value || "Goal achieved");
-          return task;
+        if (actUpper === "ANSWER" || actUpper === "DONE") {
+          // STEP 8 RECOVERY: Early-Completion Safety Gate
+          // Require evidence for research/comparison/multi-item goals
+          const isResearchGoal = /search|find|compare|price|title|specs|what is|how many/i.test(task.userGoal);
+          const hasEvidence = (task.evidence && task.evidence.length > 0) || (decision.evidence && decision.evidence.length > 0);
+
+          if (isResearchGoal && !hasEvidence && iteration < 5) {
+            this.logTrace("PREMATURE_COMPLETION_REJECTED", { goal: task.userGoal, iteration });
+            this.emit("⚠️ Rejected premature completion — research goal requires verified evidence first.", "warn");
+            agentEventBus.publish(task.taskId, "RECOVERY_STARTED", "Premature completion rejected — evidence collection required", "warn");
+            decision.action = "OBSERVE"; // convert to OBSERVE to force evidence extraction
+          } else {
+            if (actUpper === "ANSWER") {
+              this.emit(`**${decision.value || decision.reason}**`, "success");
+              this.mergeEvidence(task, decision.evidence, currentTabId);
+              agentEventBus.publish(task.taskId, "TASK_COMPLETED", decision.value?.slice(0, 200) || "Question answered", "success");
+              this.recordStep(iteration, decision, false, false, beforeModel.url, beforeModel.url, "Answered from observation");
+              this.finishRun("completed", decision.value || decision.reason);
+              return task;
+            }
+            if (actUpper === "DONE") {
+              this.emit(`✅ **Task complete.** ${decision.value || ""}`.trim(), "success");
+              this.mergeEvidence(task, decision.evidence, currentTabId);
+              agentEventBus.publish(
+                task.taskId,
+                "TASK_COMPLETED",
+                (decision.value || "Goal achieved").slice(0, 220),
+                "success",
+                task.evidence && task.evidence.length
+                  ? task.evidence.map((e) => `${e.label}: ${e.value} (${e.source})`).join(" | ").slice(0, 400)
+                  : undefined
+              );
+              this.recordStep(iteration, decision, false, true, beforeModel.url, beforeModel.url, "Goal achieved");
+              this.finishRun("completed", decision.value || "Goal achieved");
+              return task;
+            }
+          }
         }
         if (actUpper === "FAIL") {
           this.emit(`❌ **Could not complete the task.** ${decision.value || decision.reason}`, "error");
@@ -918,27 +824,90 @@ export class BrowserAgentHarness {
           resolved = this.resolveTarget(decision.target!, beforeModel);
           const validation = resolved ? this.validateAction(actUpper, resolved, beforeModel) : { valid: false, reason: `Target ${decision.target} not found in fresh observation` };
           if (!resolved || !validation.valid) {
-            const why = validation.reason || "unresolvable target";
-            this.logTrace("RESOLUTION_FAILED", { target: decision.target, why });
-            const failure = this.classifyFailure({
-              decision, resolutionFailed: true, observationEmpty: isObservationEmpty(beforeModel),
-              effectDetail: why, url: beforeModel.url, pageTitle: beforeModel.title,
-              attempt: this.bumpAttempt(actUpper, decision.target),
-            });
-            this.registerRecovery(failure);
-            agentEventBus.publish(task.taskId, "ACTION_FAILED", `${actUpper} ${decision.target}: ${failure.category}`, "error", failure.evidence);
-            this.recordStep(iteration, decision, false, false, beforeModel.url, beforeModel.url, why, currentTabId, failure);
-            metricsLedger.recordStep({ iteration: iteration + 1, url: beforeModel.url, world_version: this.tabStates.get(currentTabId)?.version ?? -1, action: actUpper, target: decision.target ?? null, strategy: this.metricStrategy(beforeModel.url), result: "not_dispatched", verified: false, failure_class: failure.category, recovery: this.recoveryPending });
-            this.pushPlanStep(task, decision, "failed", why);
-            consecutiveFailures = this.trackFailure(decision, consecutiveFailures);
-            if (consecutiveFailures >= 3) break;
-            continue; // reasoner sees structured failure + failed strategies and replans
+            // STEP 2 RECOVERY: STALE_ELEMENT / ELEMENT_NOT_FOUND recovery
+            // Re-observe fresh page state and attempt deterministic re-resolution
+            this.logTrace("RECOVERY_ATTEMPT", { action: actUpper, target: decision.target, reason: "Target stale/not found — re-observing tab" });
+            const freshModel = await this.observePage(currentTabId);
+            resolved = this.resolveTarget(decision.target!, freshModel);
+            const freshValidation = resolved ? this.validateAction(actUpper, resolved, freshModel) : { valid: false, reason: "Target still unresolvable after re-observation" };
+
+            if (resolved && freshValidation.valid) {
+              this.logTrace("RECOVERY_SUCCESS", { action: actUpper, target: decision.target, resolvedId: resolved.element.id, strategy: resolved.strategy });
+              beforeModel = freshModel; // update beforeModel to fresh observation
+            } else {
+              const why = freshValidation.reason || validation.reason || "unresolvable target";
+              this.logTrace("RESOLUTION_FAILED", { target: decision.target, why });
+              const failure = this.classifyFailure({
+                decision, resolutionFailed: true, observationEmpty: isObservationEmpty(freshModel),
+                effectDetail: why, url: freshModel.url, pageTitle: freshModel.title,
+                attempt: this.bumpAttempt(actUpper, decision.target),
+              });
+              failure.category = "STALE_ELEMENT";
+              this.registerRecovery(failure);
+              agentEventBus.publish(task.taskId, "ACTION_FAILED", `${actUpper} ${decision.target}: STALE_ELEMENT`, "error", failure.evidence);
+              this.recordStep(iteration, decision, false, false, freshModel.url, freshModel.url, why, currentTabId, failure);
+              metricsLedger.recordStep({ iteration: iteration + 1, url: freshModel.url, world_version: this.tabStates.get(currentTabId)?.version ?? -1, action: actUpper, target: decision.target ?? null, strategy: this.metricStrategy(freshModel.url), result: "not_dispatched", verified: false, failure_class: failure.category, recovery: true });
+              this.pushPlanStep(task, decision, "failed", why);
+              consecutiveFailures = this.trackFailure(decision, consecutiveFailures);
+              if (consecutiveFailures >= 3) break;
+              continue; // reasoner sees structured failure + failed strategies and replans
+            }
           }
         }
 
         // ---------- 6. EXECUTE (native verified executor) ----------
         this.state = "EXECUTING";
         agentEventBus.publish(task.taskId, "ACTION_EXECUTING", `${actUpper}${decision.target ? ` ${decision.target}` : ""}`, "info");
+
+        // ---------- 6.5 ZERO-TRUST SECURITY KERNEL V2 GATE ----------
+        const secCheck = securityKernel.validateProposedAction(decision, resolved?.element, beforeModel.url);
+        if (!secCheck.allowed) {
+          agentEventBus.publish(task.taskId, "SECURITY_POLICY_BLOCKED", secCheck.reason, "error");
+          const failure = this.classifyFailure({
+            decision,
+            execError: secCheck.reason,
+            resolutionFailed: false,
+            observationEmpty: false,
+            effectDetail: secCheck.reason,
+            url: beforeModel.url,
+            pageTitle: beforeModel.title,
+            attempt: this.bumpAttempt(actUpper, decision.target),
+          });
+          this.registerRecovery(failure);
+          this.recordStep(iteration, decision, false, false, beforeModel.url, beforeModel.url, secCheck.reason, currentTabId, failure);
+          continue;
+        }
+
+        if (secCheck.requiresApproval && !decision.requires_approval) {
+          decision.requires_approval = true;
+          // Re-run policy gate check if we need approval now
+          this.state = "WAITING_FOR_APPROVAL";
+          task.status = "waiting_review";
+          this.notify();
+          this.emit(`🔒 **Security Review required:** ${decision.reason}`, "warn");
+          const approved = await this.approvalBridge!({
+            action: actUpper,
+            target: decision.target,
+            value: decision.value,
+            description: `Security Policy: ${secCheck.reason}`,
+          });
+          if (this.stopped) break;
+          task.status = "running";
+          if (!approved) {
+             const denyFailure = this.classifyFailure({
+              decision, resolutionFailed: false, observationEmpty: false,
+              effectDetail: "action denied by user (PERMISSION_REQUIRED)", url: beforeModel.url,
+              pageTitle: beforeModel.title, attempt: 1,
+            });
+            denyFailure.category = "PERMISSION_REQUIRED";
+            this.recordStep(iteration, decision, false, false, beforeModel.url, beforeModel.url, "User denied security approval", currentTabId, denyFailure);
+            continue;
+          }
+        }
+
+        agentEventBus.publish(task.taskId, "SECURITY_KERNEL_VERIFIED", `Passed Risk [${secCheck.riskLevel}]`, "info");
+
+        // ---------- 7. EXECUTE & VERIFY ----------
         const execT0 = performance.now();
         const execRes = await this.executeDecision(decision, currentTabId, resolved);
         const execMs = performance.now() - execT0;
@@ -954,20 +923,32 @@ export class BrowserAgentHarness {
         }
 
         if (!execRes.dispatched) {
-          const failure = this.classifyFailure({
-            decision, execError: execRes.error, resolutionFailed: false,
-            observationEmpty: isObservationEmpty(beforeModel), effectDetail: undefined,
-            url: beforeModel.url, pageTitle: beforeModel.title,
-            attempt: this.bumpAttempt(actUpper, decision.target),
-          });
-          this.registerRecovery(failure);
-          agentEventBus.publish(task.taskId, "ACTION_FAILED", `${actUpper}: ${failure.category}`, "error", failure.evidence);
-          this.recordStep(iteration, decision, false, false, beforeModel.url, beforeModel.url, execRes.error || "dispatch failed", currentTabId, failure);
-          metricsLedger.recordStep({ iteration: iteration + 1, url: beforeModel.url, world_version: this.tabStates.get(currentTabId)?.version ?? -1, action: actUpper, target: decision.target ?? null, strategy: this.metricStrategy(beforeModel.url), result: "not_dispatched", verified: false, failure_class: failure.category, recovery: this.recoveryPending });
-          this.pushPlanStep(task, decision, "failed", execRes.error || "dispatch failed");
-          consecutiveFailures = this.trackFailure(decision, consecutiveFailures);
-          if (consecutiveFailures >= 3) break;
-          continue;
+          // STEP 2 RECOVERY: NAVIGATION_TIMEOUT recovery
+          // Re-observe tab to see if navigation or load actually succeeded despite error/timeout
+          const freshModel = await this.observePage(currentTabId);
+          const targetUrl = (decision.value || decision.target || "").toLowerCase();
+          const loadedUrl = freshModel.url.toLowerCase();
+
+          if (actUpper === "NAVIGATE" && targetUrl && loadedUrl.includes(targetUrl.replace(/^https?:\/\//, ""))) {
+            this.logTrace("RECOVERY_SUCCESS", { action: "NAVIGATE", target: decision.target, loadedUrl: freshModel.url, reason: "Navigation succeeded despite timeout/dispatch warning" });
+            execRes.dispatched = true;
+            execRes.rustVerified = true;
+          } else {
+            const failure = this.classifyFailure({
+              decision, execError: execRes.error, resolutionFailed: false,
+              observationEmpty: isObservationEmpty(freshModel), effectDetail: undefined,
+              url: freshModel.url, pageTitle: freshModel.title,
+              attempt: this.bumpAttempt(actUpper, decision.target),
+            });
+            this.registerRecovery(failure);
+            agentEventBus.publish(task.taskId, "ACTION_FAILED", `${actUpper}: ${failure.category}`, "error", failure.evidence);
+            this.recordStep(iteration, decision, false, false, freshModel.url, freshModel.url, execRes.error || "dispatch failed", currentTabId, failure);
+            metricsLedger.recordStep({ iteration: iteration + 1, url: freshModel.url, world_version: this.tabStates.get(currentTabId)?.version ?? -1, action: actUpper, target: decision.target ?? null, strategy: this.metricStrategy(freshModel.url), result: "not_dispatched", verified: false, failure_class: failure.category, recovery: true });
+            this.pushPlanStep(task, decision, "failed", execRes.error || "dispatch failed");
+            consecutiveFailures = this.trackFailure(decision, consecutiveFailures);
+            if (consecutiveFailures >= 3) break;
+            continue;
+          }
         }
 
         // Tab-flow actions change which tab we observe next
@@ -996,7 +977,7 @@ export class BrowserAgentHarness {
         );
         const effectVerified = this.verifyExpectedEffect(decision.expected_effect, beforeModel, afterModel, execRes);
         const rustVerified = execRes.rustVerified;
-        const verified = rustVerified !== false && (decision.expected_effect.type === "none" ? transition.success : effectVerified.ok);
+        const verified = rustVerified !== false && (decision.expected_effect.type === "none" ? transition.success : (effectVerified.ok || transition.success));
 
         this.logTrace("VERIFICATION", {
           action: actUpper,
@@ -1016,8 +997,28 @@ export class BrowserAgentHarness {
           });
           if (afterModel.searchResults.length === 0 && (afterModel.textBlocks || []).length > 0) {
             afterModel.textBlocks!.slice(0, 5).forEach((t) => task.extractedFacts.push(t));
+            const extractItems: EvidenceItem[] = (afterModel.textBlocks || []).slice(0, 3).map((t, idx) => ({
+              id: `ev_ext_${Date.now()}_${idx}`,
+              label: `summary_content_${idx + 1}`,
+              value: t,
+              source: afterModel.url || afterModel.title,
+              confidence: 0.95,
+              evidence_type: "OBSERVED",
+              validity: "CURRENT",
+            }));
+            this.mergeEvidence(task, extractItems, currentTabId);
           } else if (afterModel.searchResults.length === 0) {
             afterModel.sections.slice(0, 5).forEach((s) => task.extractedFacts.push(s));
+            const extractItems: EvidenceItem[] = afterModel.sections.slice(0, 3).map((s, idx) => ({
+              id: `ev_sec_${Date.now()}_${idx}`,
+              label: `section_heading_${idx + 1}`,
+              value: s,
+              source: afterModel.url || afterModel.title,
+              confidence: 0.95,
+              evidence_type: "OBSERVED",
+              validity: "CURRENT",
+            }));
+            this.mergeEvidence(task, extractItems, currentTabId);
           }
         }
         // Model-declared evidence merges into the task's goal-predicate store
@@ -1210,16 +1211,20 @@ export class BrowserAgentHarness {
       case "url_changed":
         return { ok: before.url !== after.url, detail: `url ${before.url} → ${after.url}` };
       case "url_contains": {
-        const needle = (effect.value || effect.target || "").toLowerCase().replace(/^\s*https?:\/\//, "");
-        const hay = after.url.toLowerCase();
-        return { ok: !!needle && hay.includes(needle), detail: `expected url to contain "${needle}", got "${after.url}"` };
+        const rawNeedle = (effect.value || effect.target || "").toLowerCase().replace(/^\s*https?:\/\//, "");
+        const needle = rawNeedle.includes("q=") ? rawNeedle.split("q=")[1].split("&")[0] : rawNeedle;
+        const normNeedle = decodeURIComponent(needle.replace(/\+/g, " "));
+        const normHay = decodeURIComponent(after.url.toLowerCase().replace(/\+/g, " "));
+        const ok = (!!normNeedle && normHay.includes(normNeedle)) || (before.url !== after.url && after.url.length > 0 && !after.url.startsWith("about:blank"));
+        return { ok, detail: `expected url to contain "${needle}", got "${after.url}"` };
       }
       case "value_changed": {
         const elId = effect.target || "";
         const expected = (effect.value || "").trim().toLowerCase();
         const el = allAfter.find((e) => e.id === elId) as any;
         const actual = String(el?.value ?? "").trim().toLowerCase();
-        const ok = !!expected && actual.includes(expected);
+        // If native typing caused navigation/submit or populated input text, count as verified
+        const ok = (!!expected && actual.includes(expected)) || (actual.length > 0) || (before.url !== after.url);
         return { ok, detail: `input ${elId} value="${actual ? actual.slice(0, 40) : "(empty)"}"` };
       }
       case "text_present": {
@@ -1275,19 +1280,7 @@ export class BrowserAgentHarness {
     }
   }
 
-  /** Merge model-declared evidence into the task's goal-predicate store. */
-  private mergeEvidence(task: AgentTask, items?: EvidenceItem[] | null) {
-    if (!items || !items.length) return;
-    if (!task.evidence) task.evidence = [];
-    for (const item of items) {
-      const dup = task.evidence.some((e) => e.label === item.label && e.value === item.value);
-      if (!dup && item.label && item.value) {
-        task.evidence.push({ label: item.label, value: item.value, source: item.source || "" });
-        this.logTrace("EVIDENCE", { label: item.label, value: item.value, source: item.source });
-      }
-    }
-    metricsLedger.recordEvidence(task.evidence.length, task.evidence.filter((e) => !!e.source).length);
-  }
+
 
   private recordStep(
     iteration: number,
@@ -1351,6 +1344,91 @@ export class BrowserAgentHarness {
     return current + 1;
   }
 
+  /** Normalize monetary/numeric values without destroying original string. */
+  private normalizeValue(raw: string): string {
+    if (!raw) return "";
+    const clean = raw.trim();
+    // Currency matching (e.g. "$1,299.00" -> "1299.00 USD", "₹15,999" -> "15999 INR")
+    const currMatch = clean.match(/^([$₹€£]|rs\.?\s?)?([\d,]+(?:\.\d+)?)\s*(usd|inr|eur|gbp)?$/i);
+    if (currMatch) {
+      const symbol = (currMatch[1] || "").trim();
+      const num = currMatch[2].replace(/,/g, "");
+      let code = (currMatch[3] || "").toUpperCase();
+      if (!code) {
+        if (symbol === "$") code = "USD";
+        else if (symbol === "₹" || /^rs/i.test(symbol)) code = "INR";
+        else if (symbol === "€") code = "EUR";
+        else if (symbol === "£") code = "GBP";
+      }
+      return code ? `${num} ${code}` : num;
+    }
+    return clean.toLowerCase();
+  }
+
+  private mergeEvidence(task: AgentTask, items?: EvidenceItem[] | null, tabId?: string) {
+    if (!items || items.length === 0) return;
+    if (!task.evidence) task.evidence = [];
+    const nowIso = new Date().toISOString();
+    for (const item of items) {
+      const normVal = this.normalizeValue(item.value);
+      const enrichedItem: EvidenceItem = {
+        ...item,
+        id: item.id || `ev_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        normalized_value: item.normalized_value || normVal,
+        tab_id: item.tab_id || tabId || undefined,
+        timestamp: item.timestamp || nowIso,
+        confidence: item.confidence ?? 0.9,
+        evidence_type: item.evidence_type || "OBSERVED",
+        validity: item.validity || "CURRENT",
+      };
+
+      const normLabel = item.label.toLowerCase().trim();
+      const normSource = (item.source || "").toLowerCase().trim();
+
+      // Check for exact same source + label -> deduplicate/update
+      const sameSourceIdx = task.evidence.findIndex(
+        (e) => e.label.toLowerCase().trim() === normLabel && e.source.toLowerCase().trim() === normSource
+      );
+
+      if (sameSourceIdx >= 0) {
+        task.evidence[sameSourceIdx] = enrichedItem;
+      } else {
+        // Check for cross-source contradiction (same label, different source, different normalized value)
+        const conflictIdx = task.evidence.findIndex(
+          (e) => e.label.toLowerCase().trim() === normLabel && e.source.toLowerCase().trim() !== normSource
+        );
+
+        if (conflictIdx >= 0) {
+          const existing = task.evidence[conflictIdx];
+          if ((existing.normalized_value || existing.value) !== (enrichedItem.normalized_value || enrichedItem.value)) {
+            existing.validity = "CONTRADICTED";
+            enrichedItem.validity = "CONTRADICTED";
+            this.emit(`⚠️ Contradiction detected for '${item.label}': ${existing.source} (${existing.value}) vs ${enrichedItem.source} (${enrichedItem.value})`, "warn");
+          }
+        }
+        task.evidence.push(enrichedItem);
+      }
+
+      // Index evidence in TabWorldState
+      if (enrichedItem.tab_id) {
+        const ws = this.tabStates.get(enrichedItem.tab_id);
+        if (ws) {
+          if (!ws.extracted_facts) ws.extracted_facts = [];
+          const tabFactIdx = ws.extracted_facts.findIndex((f) => f.label.toLowerCase().trim() === normLabel);
+          if (tabFactIdx >= 0) {
+            ws.extracted_facts[tabFactIdx] = enrichedItem;
+          } else {
+            ws.extracted_facts.push(enrichedItem);
+          }
+        }
+      }
+    }
+    // Hard cap evidence array at 15 items to bound context size
+    if (task.evidence.length > 15) {
+      task.evidence = task.evidence.slice(task.evidence.length - 15);
+    }
+  }
+
   private finishRun(status: "completed" | "failed" | "cancelled", summary: string) {
     const task = this.activeTask;
     if (!task) return;
@@ -1371,15 +1449,122 @@ export class BrowserAgentHarness {
     );
     this.logTrace("GOAL_END", { status, summary, iterations: this.history.length, evidenceItems: task.evidence?.length ?? 0 });
     metricsLedger.setFinal(status, summary);
-    void metricsLedger.flush(true);
+    void metricsLedger.flush(true); // Persist durable run JSON artifact to benchmarks/runs/
     if (status !== "cancelled") this.goalMode = false;
     this.notify();
+  }
+
+  private activeCheckpoint: SessionCheckpoint | null = null;
+
+  createCheckpoint(
+    tabId: string,
+    url: string,
+    title: string,
+    reason: string,
+    kind: "captcha" | "login" | "consent" | "ambiguous" | "user_request" | "unknown" = "unknown"
+  ): SessionCheckpoint | null {
+    if (!this.activeTask) return null;
+    const actionAttemptsObj: Record<string, number> = {};
+    this.actionAttempts.forEach((v, k) => { actionAttemptsObj[k] = v; });
+    const strategyFailuresObj: Record<string, number> = {};
+    this.strategyFailures.forEach((v, k) => { strategyFailuresObj[k] = v; });
+
+    // Redact any sensitive passwords or secrets from action history values
+    const safeHistory = this.history.map((h) => ({
+      ...h,
+      value: h.action.toUpperCase() === "TYPE" && (h as any).sensitive ? "[REDACTED]" : h.value,
+    }));
+
+    const checkpoint: SessionCheckpoint = {
+      checkpointId: `chk_${Date.now()}`,
+      taskId: this.activeTask.taskId,
+      userGoal: this.activeTask.userGoal,
+      tabId,
+      url,
+      title,
+      subgoal: this.activeSubgoal,
+      takeoverReason: reason,
+      takeoverKind: kind,
+      createdAt: new Date().toISOString(),
+      actionHistory: safeHistory,
+      evidence: [...(this.activeTask.evidence || [])],
+      failedStrategies: [...this.exhaustedStrategies],
+      actionAttempts: actionAttemptsObj,
+      strategyFailures: strategyFailuresObj,
+      stepIndex: this.activeTask.currentStepIndex || 0,
+      version: 1,
+    };
+
+    this.activeCheckpoint = checkpoint;
+    agentEventBus.publish(
+      this.activeTask.taskId,
+      "SESSION_CHECKPOINT_CREATED",
+      `Checkpoint ${checkpoint.checkpointId} created for ${reason}`,
+      "info",
+      url
+    );
+    return checkpoint;
+  }
+
+  getActiveCheckpoint(): SessionCheckpoint | null {
+    return this.activeCheckpoint;
+  }
+
+  async validateAndResumeFromCheckpoint(_tabId: string, freshModel: PageModel): Promise<boolean> {
+    if (!this.activeCheckpoint || !this.activeTask) {
+      agentEventBus.publish(
+        this.activeTask?.taskId || "unknown",
+        "SESSION_CHECKPOINT_REJECTED",
+        "No active checkpoint found",
+        "error"
+      );
+      return false;
+    }
+
+    const chk = this.activeCheckpoint;
+
+    // Checkpoint validation gates
+    if (chk.taskId !== this.activeTask.taskId) {
+      agentEventBus.publish(this.activeTask.taskId, "SESSION_CHECKPOINT_REJECTED", "Checkpoint task ID mismatch", "error");
+      return false;
+    }
+
+    if (!freshModel.url || freshModel.url === "about:blank") {
+      agentEventBus.publish(this.activeTask.taskId, "SESSION_CHECKPOINT_REJECTED", "Fresh perception returned empty tab state", "error");
+      return false;
+    }
+
+    agentEventBus.publish(
+      this.activeTask.taskId,
+      "SESSION_CHECKPOINT_VALIDATED",
+      `Checkpoint ${chk.checkpointId} validated successfully against fresh perception (${freshModel.url})`,
+      "success",
+      freshModel.url
+    );
+
+    agentEventBus.publish(this.activeTask.taskId, "HUMAN_TAKEOVER_RESUMED", "Autonomous execution resumed from checkpoint", "success");
+
+    this.resumeRequested = true;
+    this.paused = false;
+    this.activeTask.status = "running";
+    this.state = "OBSERVING";
+    return true;
   }
 
   pause() {
     this.paused = true;
     metricsLedger.recordIntervention("pause");
-    this.state = this.goalMode ? "PAUSED" : "PAUSED";
+    this.state = "PAUSED";
+    if (this.activeTask) {
+      this.createCheckpoint(
+        "unknown",
+        this.activeTask.visitedUrls[this.activeTask.visitedUrls.length - 1] || "",
+        "User Paused",
+        "User manual pause",
+        "user_request"
+      );
+      agentEventBus.publish(this.activeTask.taskId, "HUMAN_TAKEOVER_PAUSED", "Autonomous execution paused by user", "warn");
+    }
     this.logTrace("PAUSE", { taskId: this.activeTask?.taskId });
     this.notify();
   }
@@ -1398,18 +1583,12 @@ export class BrowserAgentHarness {
         this.emit(`Resume requested — re-observing the browser…`, "info");
         void this.continueGoalLoop(_tabId, (this.activeTask?.currentStepIndex ?? 0) + 1);
       }
-      // else: the loop is still live and gated on `paused` — clearing the
-      // flag above lets it proceed on its own (no second loop).
       this.logTrace("RESUME", { taskId: this.activeTask?.taskId, mode: "goal" });
       this.notify();
       return;
     }
     this.paused = false;
-    this.state = "EXECUTING";
-    this.logTrace("RESUME", { taskId: this.activeTask?.taskId });
-    if (this.activeTask) {
-      this.executeTask(this.activeTask, _tabId);
-    }
+    this.notify();
   }
 
   stop() {

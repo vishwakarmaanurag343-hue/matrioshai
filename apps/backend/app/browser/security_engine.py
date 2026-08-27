@@ -45,9 +45,13 @@ class PromptInjectionDefense:
 
     INJECTION_PATTERNS = [
         r"ignore\s+(all\s+)?previous\s+instructions",
+        r"disregard\s+(all\s+)?prior\s+instructions",
+        r"forget\s+(all\s+)?previous\s+directives",
         r"system\s+prompt\s+override",
+        r"new\s+system\s+instruction",
         r"upload\s+your\s+credentials",
         r"send\s+passwords",
+        r"print\s+api\s+key",
         r"disable\s+security\s+policy",
         r"bypass\s+confirmation"
     ]

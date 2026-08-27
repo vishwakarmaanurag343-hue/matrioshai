@@ -1,4 +1,5 @@
 import { Message } from "../../types";
+import { API_BASE_URL } from "./client";
 
 export interface ChatResponse {
   conversation_id: string;
@@ -8,7 +9,7 @@ export interface ChatResponse {
 
 export const chatApi = {
   send: async (prompt: string, conversationId?: string): Promise<ChatResponse> => {
-    const response = await fetch("http://127.0.0.1:8000/api/v1/chat", {
+    const response = await fetch(`${API_BASE_URL}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -31,7 +32,7 @@ export const chatApi = {
     onComplete: (asstMsgId: string, fullText: string) => void,
     onError: (err: string) => void
   ) => {
-    fetch("http://127.0.0.1:8000/api/v1/chat", {
+    fetch(`${API_BASE_URL}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

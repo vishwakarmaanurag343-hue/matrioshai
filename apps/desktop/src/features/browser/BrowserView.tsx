@@ -664,7 +664,21 @@ export const BrowserView: React.FC = () => {
     }
   };
 
-  const handleExecuteAction = async (actionName: string, targetElId?: string, valueText?: string, userApproved: boolean = false) => {
+  /**
+ * DEBUG/TEST ONLY — NOT the canonical execution path.
+ *
+ * Used exclusively by the AI sidebar's interactive "Click" / "Type" test buttons
+ * (triggered via handleSendToAI when action starts with "Click " or "Type ").
+ *
+ * The canonical production execution path is:
+ *   BrowserTaskManager.startGoal() → BrowserAgentHarness.executeGoal()
+ *   → harness.executeAction() → nativeBrowserService.executeAIAction() + ActionVerifier
+ *
+ * This function duplicates execute→verify logic for manual element testing only.
+ * It MUST NOT be called from any autonomous/goal-driven code path.
+ * Test 15 (e2e_agent_validation.test.ts) guards against production references.
+ */
+const handleExecuteAction = async (actionName: string, targetElId?: string, valueText?: string, userApproved: boolean = false) => {
     if (!activeTabId) return;
     try {
       // 1. Capture before state

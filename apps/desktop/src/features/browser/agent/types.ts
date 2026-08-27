@@ -38,6 +38,23 @@ export interface PerceptionSnapshot {
 
 export type StepStatus = "pending" | "running" | "completed" | "failed" | "waiting_approval" | "skipped";
 
+/**
+ * SINGLE SOURCE OF TRUTH for the browser-agent TASK lifecycle (Phase 1
+ * consolidation). Distinct concepts that must NOT be merged into this union:
+ *   - HarnessState  (harness FSM phase, agentHarness.ts)
+ *   - StepStatus    (individual planned-step lifecycle, above)
+ *   - the GENERAL agent subsystem's AgentTaskStatus (src/types/index.ts)
+ * Terminal semantics: completed | failed | cancelled | waiting_user.
+ */
+export type BrowserAgentTaskStatus =
+  | "running"
+  | "paused"
+  | "waiting_review"
+  | "waiting_user"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
 export interface PlanStep {
   id: string;
   goal: string;
@@ -56,8 +73,7 @@ export interface AgentTask {
   mode: "general" | "research" | "comparison" | "travel";
   steps: PlanStep[];
   currentStepIndex: number;
-  status: "idle" | "planning" | "running" | "paused" | "waiting_user"
-    | "waiting_review" | "completed" | "failed" | "cancelled";
+  status: BrowserAgentTaskStatus;
   createdAt: string;
   updatedAt: string;
   visitedUrls: string[];
@@ -121,6 +137,8 @@ export interface AgentDecision {
   message?: string | null;
   evidence?: EvidenceItem[] | null;   // required for DONE on research goals
   progress_estimate?: number | null;  // honest self-reported 0-100
+  subgoal?: string | null;            // Phase 3: next active sub-objective
+  confidence?: number | null;         // Phase 3: model self-reported confidence 0.0-1.0
 }
 
 export interface StepRecord {
@@ -150,7 +168,7 @@ export interface TabSummary {
 // ===========================================================================
 
 export type FailureCategory =
-  | "TARGET_NOT_FOUND" | "OBSERVATION_EMPTY" | "EXTRACTION_FAILED"
+  | "TARGET_NOT_FOUND" | "STALE_ELEMENT" | "OBSERVATION_EMPTY" | "EXTRACTION_FAILED"
   | "NAVIGATION_FAILED" | "VERIFICATION_FAILED" | "AUTH_REQUIRED"
   | "CAPTCHA" | "BLOCKED" | "PERMISSION_REQUIRED" | "TIMEOUT" | "UNKNOWN";
 
@@ -164,10 +182,20 @@ export interface ActionFailure {
   evidence: string;      // what was actually observed (truthful)
 }
 
+export type EvidenceType = "OBSERVED" | "USER_PROVIDED" | "INFERRED" | "DERIVED";
+export type EvidenceValidity = "CURRENT" | "STALE" | "INVALIDATED" | "CONTRADICTED";
+
 export interface EvidenceItem {
-  label: string;         // e.g. "official price", "competitor price"
-  value: string;         // e.g. "₹15,999"
-  source: string;        // URL the evidence came from
+  id?: string;               // Phase 3: deterministic id e.g. "ev_17877912"
+  label: string;             // e.g. "official price", "competitor price"
+  value: string;             // e.g. "$1,299.00"
+  normalized_value?: string; // Phase 4: e.g. "1299.00 USD"
+  source: string;            // URL the evidence came from
+  tab_id?: string;           // Phase 3: origin tab id
+  timestamp?: string;        // Phase 3: ISO timestamp
+  confidence?: number;       // Phase 3: 0.0-1.0
+  evidence_type?: EvidenceType; // Phase 4: OBSERVED | USER_PROVIDED | INFERRED | DERIVED
+  validity?: EvidenceValidity;  // Phase 4: CURRENT | STALE | INVALIDATED | CONTRADICTED
 }
 
 /** Universal perception escalation ladder (no site-specific logic). */
@@ -184,6 +212,7 @@ export interface TabWorldState {
   title: string;
   observation_level: PerceptionLevel;
   version: number;        // bumped every fresh observation of this tab
+  extracted_facts?: EvidenceItem[]; // Phase 3: facts remembered from this specific tab
 }
 
 export type AgentEventType =
@@ -191,7 +220,11 @@ export type AgentEventType =
   | "ACTION_PROPOSED" | "ACTION_EXECUTING" | "ACTION_VERIFIED" | "ACTION_FAILED"
   | "RECOVERY_STARTED" | "STRATEGY_CHANGED" | "WAITING_FOR_USER"
   | "USER_INPUT_REQUIRED" | "CHECKPOINT" | "READY_FOR_REVIEW"
-  | "TASK_COMPLETED" | "TASK_FAILED" | "TASK_CANCELLED";
+  | "TASK_COMPLETED" | "TASK_FAILED" | "TASK_CANCELLED"
+  | "HUMAN_TAKEOVER_REQUIRED" | "HUMAN_TAKEOVER_PAUSED" | "SESSION_CHECKPOINT_CREATED"
+  | "HUMAN_TAKEOVER_RESUME_REQUESTED" | "SESSION_CHECKPOINT_VALIDATED"
+  | "SESSION_CHECKPOINT_REJECTED" | "HUMAN_TAKEOVER_RESUMED"
+  | "SECURITY_INJECTION_REDACTED" | "SECURITY_POLICY_BLOCKED" | "SECURITY_KERNEL_VERIFIED";
 
 export interface AgentEvent {
   id: string;
@@ -216,4 +249,26 @@ export interface ReasoningRequest {
   constraints: string[];
   failed_strategies?: string[];      // signatures of exhausted strategies
   observation_level?: PerceptionLevel;
+  subgoal?: string;                    // Phase 3: active sub-objective
+  accumulated_evidence?: EvidenceItem[]; // Phase 3: facts verified across steps/tabs
+}
+
+export interface SessionCheckpoint {
+  checkpointId: string;
+  taskId: string;
+  userGoal: string;
+  tabId: string;
+  url: string;
+  title: string;
+  subgoal?: string | null;
+  takeoverReason: string;
+  takeoverKind: "captcha" | "login" | "consent" | "ambiguous" | "user_request" | "unknown";
+  createdAt: string;
+  actionHistory: StepRecord[];
+  evidence: EvidenceItem[];
+  failedStrategies: string[];
+  actionAttempts: Record<string, number>;
+  strategyFailures: Record<string, number>;
+  stepIndex: number;
+  version: number;
 }

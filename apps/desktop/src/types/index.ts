@@ -411,3 +411,75 @@ export interface SendMessageResponse {
   status: string;
   message_hash: string;
 }
+
+// ============================================================================
+// Notepad capability layer (Slice 1) — types appended for re-export only.
+// See apps/desktop/src/features/notepad/types.ts for the canonical definitions.
+// ============================================================================
+
+export type NotepadRiskLevel = "LOW" | "MEDIUM" | "HIGH";
+
+export type NotepadIntentType =
+  | "NOTE"
+  | "TODO"
+  | "TASK"
+  | "COMMAND"
+  | "RESEARCH_REQUEST"
+  | "DRAFT_REQUEST"
+  | "AUTOMATION_REQUEST"
+  | "EXTERNAL_ACTION"
+  | "MULTI_ACTION_WORKFLOW";
+
+export type NotepadIntentStatus =
+  | "DETECTED"
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "REJECTED"
+  | "SKIPPED"
+  | "ROUTED"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED"
+  | "DEFERRED";
+
+export interface NotepadIntent {
+  id: string;
+  note_id: string;
+  line_number: number;
+  raw_text: string;
+  type: NotepadIntentType;
+  entities: Record<string, string>;
+  capability_id: string | null;
+  requested_action: string;
+  risk: NotepadRiskLevel;
+  approval_required: boolean;
+  confidence: number;
+  status: NotepadIntentStatus;
+  task_id: string | null;
+  confirmation_id: string | null;
+  result: NotepadAIResponse | null;
+  failure: { category: string; message: string } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotepadAIResponse {
+  summary: string;
+  suggestions: string[];
+  confidence: number;
+  model: string;
+  provider: string;
+}
+
+export interface NotepadAIError {
+  category:
+    | "PROVIDER_UNAVAILABLE"
+    | "SCHEMA_VIOLATION"
+    | "TIMEOUT"
+    | "INTERNAL"
+    | "UNKNOWN_INTENT"
+    | "DEFERRED_CAPABILITY";
+  message: string;
+  trace_id?: string;
+}

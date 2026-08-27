@@ -1,0 +1,93 @@
+{
+  "run_id": "run_mtarg7tc_8ds7",
+  "task_id": "goal_1787789081132",
+  "goal": "Open Google and tell me the page title.\n",
+  "started_at": "2026-08-27T00:04:41.132Z",
+  "iterations": 2,
+  "observations": 2,
+  "actions": 0,
+  "verified_actions": 0,
+  "failed_actions": 0,
+  "failed_observations": 0,
+  "failed_strategies": [],
+  "strategy_switches": 0,
+  "repeated_actions": 0,
+  "repeated_strategies": 0,
+  "recovery_attempts": 1,
+  "successful_recoveries": 0,
+  "tabs_opened": 0,
+  "tabs_switched": 0,
+  "model_calls": 2,
+  "model_latency_ms_total": 1109,
+  "tool_calls": 0,
+  "human_interventions": 0,
+  "evidence_items": 0,
+  "verified_evidence_items": 0,
+  "observation_latencies_ms": [
+    12,
+    2
+  ],
+  "reasoning_latencies_ms": [
+    1102,
+    7
+  ],
+  "action_latencies_ms": [],
+  "max_no_progress_streak": 0,
+  "events": 7,
+  "final_status": "failed",
+  "final_reason": "The reasoning layer could not produce a valid decision (reasoning failed: TypeError: can only concatenate str (not \"tuple\") to str).",
+  "finished_at": "2026-08-27T00:04:42.293Z",
+  "wall_clock_ms": 1161,
+  "steps": [
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T00:04:41.146Z",
+      "url": "https://matrioshai.local",
+      "world_version": 1,
+      "action": "OBSERVE",
+      "strategy": "dom",
+      "result": "observation",
+      "verified": true,
+      "failure_class": null,
+      "recovery": false,
+      "latency_ms": 12
+    },
+    {
+      "iteration": 1,
+      "url": "https://matrioshai.local",
+      "world_version": 1,
+      "action": "NAVIGATE",
+      "target": "https://www.google.com",
+      "strategy": "dom@matrioshai.local",
+      "result": "not_dispatched",
+      "verified": false,
+      "failure_class": "TIMEOUT",
+      "recovery": true,
+      "timestamp": "2026-08-27T00:04:42.261Z"
+    },
+    {
+      "iteration": 2,
+      "timestamp": "2026-08-27T00:04:42.262Z",
+      "url": "https://matrioshai.local",
+      "world_version": 1,
+      "action": "OBSERVE",
+      "strategy": "dom",
+      "result": "observation",
+      "verified": true,
+      "failure_class": null,
+      "recovery": false,
+      "latency_ms": 2
+    },
+    {
+      "iteration": 2,
+      "timestamp": "2026-08-27T00:04:42.292Z",
+      "url": "",
+      "world_version": -1,
+      "action": "REASON",
+      "result": "reasoning_failed",
+      "verified": false,
+      "failure_class": "MODEL_ERROR",
+      "recovery": true
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Activity, CheckCircle, AlertTriangle, XCircle, RefreshCw, Zap } from "lucide-react";
+import { API_BASE_URL } from "../../../services/api/client";
 
 interface ComponentHealthItem {
   component_name: string;
@@ -19,13 +20,13 @@ export const RuntimeHealthDashboard: React.FC = () => {
   const fetchHealth = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://127.0.0.1:8000/api/v1/browser/runtime/health");
+      const res = await fetch(`${API_BASE_URL}/browser/runtime/health`);
       if (res.ok) {
         const data = await res.json();
         setHealthData(data.health.components || {});
         setRuntimeState(data.health.runtime_state || "READY");
       }
-      const metricRes = await fetch("http://127.0.0.1:8000/api/v1/browser/runtime/metrics");
+      const metricRes = await fetch(`${API_BASE_URL}/browser/runtime/metrics`);
       if (metricRes.ok) {
         const data = await metricRes.json();
         setMetrics(data.metrics || {});
@@ -45,7 +46,7 @@ export const RuntimeHealthDashboard: React.FC = () => {
 
   const handleRestart = async (compName: string) => {
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/browser/runtime/supervisor/restart", {
+      await fetch(`${API_BASE_URL}/browser/runtime/supervisor/restart`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ component_name: compName }),

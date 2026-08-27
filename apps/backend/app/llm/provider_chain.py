@@ -18,8 +18,50 @@ async def call_llm(
     import httpx
     import json
 
-    # 1. OpenRouter (DeepSeek / Llama / Stealth)
-    print(f"[LLM_TRACE] providers configured: openrouter={bool(settings.OPENROUTER_API_KEY)} nvidia={bool(settings.NVIDIA_API_KEY)}", flush=True)
+    # 1. Groq Cloud (Ultra-low latency LLaMA 3.3 70B / 8B)
+    print(f"[LLM_TRACE] providers configured: groq={bool(settings.GROQ_API_KEY)} openrouter={bool(settings.OPENROUTER_API_KEY)} nvidia={bool(settings.NVIDIA_API_KEY)}", flush=True)
+    if settings.GROQ_API_KEY:
+        try:
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": settings.GROQ_MODEL or "llama-3.3-70b-versatile",
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": 1500
+            }
+            if tools:
+                payload["tools"] = tools
+
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                msg = data["choices"][0]["message"]
+                content = msg.get("content") or ""
+
+                tool_calls = msg.get("tool_calls")
+                if tool_calls and len(tool_calls) > 0 and tools:
+                    fn = tool_calls[0].get("function", {})
+                    fn_name = fn.get("name", "")
+                    try:
+                        raw_args = fn.get("arguments", "{}")
+                        fn_args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+                    except Exception:
+                        fn_args = {}
+                    return (content, {"name": fn_name, "arguments": fn_args})
+
+                if content.strip():
+                    return (content, None)
+            else:
+                print(f"[LLM_TRACE] Groq HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
+        except Exception as e:
+            print(f"[LLM_TRACE] Groq exception: {type(e).__name__}: {e}", flush=True)
+
+    # 2. OpenRouter (DeepSeek / Llama / Stealth)
     if settings.OPENROUTER_API_KEY:
         try:
             url = "https://openrouter.ai/api/v1/chat/completions"

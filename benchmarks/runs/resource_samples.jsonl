@@ -1,0 +1,1 @@
+{"run_id":"pending","task_id":"pending","label":"preflight","ts":"2026-08-24T16:01:56Z","app":{"name":"tauri_app","pid":30846,"rss_mb":87.1,"cpu_pct":0.00,"mem_pct":0.50},"backend":{"name":"fastapi_backend","pid":28874,"rss_mb":103.6,"cpu_pct":0.10,"mem_pct":0.60}}

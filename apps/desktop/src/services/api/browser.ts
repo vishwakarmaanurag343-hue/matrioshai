@@ -89,34 +89,6 @@ export const browserApi = {
       { method: "DELETE" }
     ),
 
-  aiAssist: (payload: {
-    action: string;
-    url: string;
-    title: string;
-    headings?: string[];
-    text_blocks?: string[];
-    interactive_elements?: any[];
-    interactive_elements_count?: number;
-  }): Promise<{ status: string; response: string; tool_call?: { name: string; arguments: Record<string, any> } | null }> =>
-    apiRequest<{ status: string; response: string; tool_call?: { name: string; arguments: Record<string, any> } | null }>("/browser/ai-assist", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  planAgent: (data: {
-    user_goal: string;
-    url: string;
-    title: string;
-    headings: string[];
-    text_blocks: string[];
-    interactive_elements: any[];
-    action_history: string[];
-  }): Promise<{ status: string; steps: any[] }> =>
-    apiRequest<{ status: string; steps: any[] }>("/browser/plan-agent", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-
   installWebstoreExtension: (extensionIdOrUrl: string): Promise<{
     status: string;
     path?: string;

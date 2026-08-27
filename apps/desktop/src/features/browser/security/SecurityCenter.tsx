@@ -3,6 +3,7 @@ import { ShieldCheck, Lock, Eye, RefreshCw } from "lucide-react";
 import { EmergencyStopButton } from "./EmergencyStopButton";
 import { HumanTakeoverBanner } from "./HumanTakeoverBanner";
 import { PermissionManagerModal } from "./PermissionManagerModal";
+import { API_BASE_URL } from "../../../services/api/client";
 
 export const SecurityCenter: React.FC = () => {
   const [securityState, setSecurityState] = useState<any>({
@@ -19,12 +20,12 @@ export const SecurityCenter: React.FC = () => {
 
   const fetchSecurityState = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/browser/security/state");
+      const res = await fetch(`${API_BASE_URL}/browser/security/state`);
       if (res.ok) {
         const data = await res.json();
         setSecurityState(data.security_state);
       }
-      const logRes = await fetch("http://127.0.0.1:8000/api/v1/browser/security/audit-logs?limit=20");
+      const logRes = await fetch(`${API_BASE_URL}/browser/security/audit-logs?limit=20`);
       if (logRes.ok) {
         const data = await logRes.json();
         setAuditLogs(data.audit_logs);
@@ -42,7 +43,7 @@ export const SecurityCenter: React.FC = () => {
 
   const handleTakeover = async (state: string) => {
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/browser/security/takeover", {
+      await fetch(`${API_BASE_URL}/browser/security/takeover`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ state }),
@@ -53,7 +54,7 @@ export const SecurityCenter: React.FC = () => {
 
   const handleEmergencyStop = async () => {
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/browser/security/emergency-stop", {
+      await fetch(`${API_BASE_URL}/browser/security/emergency-stop`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "User activated emergency kill switch" }),
@@ -64,7 +65,7 @@ export const SecurityCenter: React.FC = () => {
 
   const handleResetStop = async () => {
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/browser/security/emergency-stop/reset", {
+      await fetch(`${API_BASE_URL}/browser/security/emergency-stop/reset`, {
         method: "POST",
       });
       fetchSecurityState();
@@ -73,7 +74,7 @@ export const SecurityCenter: React.FC = () => {
 
   const handleGrant = async (domain: string, perms: string[]) => {
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/browser/security/permissions/grant", {
+      await fetch(`${API_BASE_URL}/browser/security/permissions/grant`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain, permissions: perms }),
@@ -84,7 +85,7 @@ export const SecurityCenter: React.FC = () => {
 
   const handleRevoke = async (domain: string) => {
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/browser/security/permissions/revoke", {
+      await fetch(`${API_BASE_URL}/browser/security/permissions/revoke`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain }),

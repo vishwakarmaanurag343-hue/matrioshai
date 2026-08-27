@@ -558,55 +558,6 @@ pub struct ExtensionRuntimeState {
     pub extension_storage: HashMap<String, HashMap<String, serde_json::Value>>,
 }
 
-// Phase 8: Autonomous Agent Runtime & Task Engine Models
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub enum AgentTaskStatus {
-    IDLE,
-    UNDERSTANDING,
-    PLANNING,
-    WAITING_FOR_APPROVAL,
-    EXECUTING,
-    OBSERVING,
-    VERIFYING,
-    RECOVERING,
-    REPLANNING,
-    COMPLETED,
-    FAILED,
-    CANCELLED,
-    BLOCKED,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PlanStep {
-    pub step_id: String,
-    pub description: String,
-    pub tool: String,
-    pub target: Option<String>,
-    pub value: Option<String>,
-    pub risk_level: ActionRiskLevel,
-    pub status: String, // PENDING, RUNNING, SUCCESS, FAILED
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ExecutionPlan {
-    pub plan_id: String,
-    pub task_id: String,
-    pub version: u64,
-    pub objective: String,
-    pub steps: Vec<PlanStep>,
-    pub current_step_index: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TaskSpec {
-    pub task_id: String,
-    pub user_goal: String,
-    pub tab_id: String,
-    pub status: AgentTaskStatus,
-    pub active_plan: Option<ExecutionPlan>,
-    pub created_at: u64,
-    pub updated_at: u64,
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BrowserContextSummary {
@@ -789,17 +740,11 @@ impl ShieldEngine {
     }
 }
 
-pub struct AgentRuntimeState {
-    pub tasks: HashMap<String, TaskSpec>,
-    pub active_task_id: Option<String>,
-}
-
 pub struct BrowserManagerCore {
     pub profiles: HashMap<String, BrowserProfile>,
     pub active_profile_id: String,
     pub permissions: HashMap<String, PermissionState>,
     pub shield_engine: ShieldEngine,
-    pub agent_runtime: AgentRuntimeState,
     pub tabs: HashMap<String, BrowserTabState>,
     pub tab_order: Vec<String>,
     pub tab_groups: HashMap<String, TabGroup>,
@@ -843,10 +788,6 @@ impl BrowserManagerCore {
             active_profile_id: "default".to_string(),
             permissions: HashMap::new(),
             shield_engine: ShieldEngine::new(),
-            agent_runtime: AgentRuntimeState {
-                tasks: HashMap::new(),
-                active_task_id: None,
-            },
             extension_runtime: ExtensionRuntimeState {
                 extensions: HashMap::new(),
                 extension_storage: HashMap::new(),
@@ -867,155 +808,6 @@ impl BrowserManagerCore {
 
 pub struct BrowserManagerState(pub Arc<Mutex<BrowserManagerCore>>);
 
-#[derive(Debug, Deserialize)]
-pub struct DynamicStepInput {
-    pub step_id: String,
-    pub tool: String,
-    pub target: Option<String>,
-    pub value: Option<String>,
-    pub description: String,
-    pub risk_level: Option<String>,
-    pub needs_replan: Option<bool>,
-}
-
-// Phase 8: Autonomous Agent Runtime Commands
-// (async): run these commands on the async runtime's thread pool instead of
-// inline on the Cocoa main thread. Tauri v2 executes non-async commands
-// INLINE on the main thread; any command that blocks (Condvar wait, poll
-// loop) there starves the very WKWebView completion/title-KVO deliveries
-// it is waiting on, because those are also dispatched on the main thread.
-#[tauri::command(async)]
-pub fn agent_create_task(
-    state: State<'_, BrowserManagerState>,
-    user_goal: String,
-    tab_id: Option<String>,
-    steps: Option<Vec<DynamicStepInput>>,
-) -> Result<TaskSpec, String> {
-    let mut manager = state.0.lock().map_err(|e| e.to_string())?;
-    let target_tab = tab_id.or_else(|| manager.active_tab_id.clone()).ok_or("No active browser tab found")?;
-    let task_id = format!("task_{}", current_timestamp());
-
-    let plan_steps: Vec<PlanStep> = if let Some(custom_steps) = steps {
-        custom_steps.into_iter().take(15).map(|s| {
-            let risk = match s.risk_level.as_deref().unwrap_or("Low") {
-                "ReadOnly" => ActionRiskLevel::ReadOnly,
-                "Medium" => ActionRiskLevel::Medium,
-                "High" => ActionRiskLevel::High,
-                "Critical" => ActionRiskLevel::Critical,
-                _ => ActionRiskLevel::Low,
-            };
-            PlanStep {
-                step_id: s.step_id,
-                description: s.description,
-                tool: s.tool,
-                target: s.target,
-                value: s.value,
-                risk_level: risk,
-                status: "READY".to_string(),
-            }
-        }).collect()
-    } else {
-        vec![
-            PlanStep {
-                step_id: "step_1".to_string(),
-                description: format!("Observe page content for '{}'", user_goal),
-                tool: "browser.observe_page".to_string(),
-                target: None,
-                value: None,
-                risk_level: ActionRiskLevel::ReadOnly,
-                status: "READY".to_string(),
-            },
-            PlanStep {
-                step_id: "step_2".to_string(),
-                description: "Extract verified semantic findings".to_string(),
-                tool: "browser.get_semantic_page".to_string(),
-                target: None,
-                value: None,
-                risk_level: ActionRiskLevel::ReadOnly,
-                status: "PENDING".to_string(),
-            },
-        ]
-    };
-
-    let plan = ExecutionPlan {
-        plan_id: format!("plan_{}", current_timestamp()),
-        task_id: task_id.clone(),
-        version: 1,
-        objective: user_goal.clone(),
-        steps: plan_steps,
-        current_step_index: 0,
-    };
-
-    let task = TaskSpec {
-        task_id: task_id.clone(),
-        user_goal,
-        tab_id: target_tab,
-        status: AgentTaskStatus::PLANNING,
-        active_plan: Some(plan),
-        created_at: current_timestamp(),
-        updated_at: current_timestamp(),
-    };
-
-    manager.agent_runtime.tasks.insert(task_id.clone(), task.clone());
-    manager.agent_runtime.active_task_id = Some(task_id);
-
-    Ok(task)
-}
-
-#[tauri::command(async)]
-pub fn agent_execute_next_step(
-    app: AppHandle,
-    state: State<'_, BrowserManagerState>,
-    task_id: String,
-) -> Result<TaskSpec, String> {
-    let mut manager = state.0.lock().map_err(|e| e.to_string())?;
-
-    let task = manager.agent_runtime.tasks.get_mut(&task_id).ok_or("Task not found")?;
-    if let Some(ref mut plan) = task.active_plan {
-        // Hard Safety Cap: Max 15 steps per task
-        if plan.current_step_index >= 15 {
-            task.status = AgentTaskStatus::FAILED;
-            return Err("Safety Cap Exceeded: Maximum 15 steps per autonomous task reached.".to_string());
-        }
-
-        if plan.current_step_index < plan.steps.len() {
-            let step = &mut plan.steps[plan.current_step_index];
-            step.status = "RUNNING".to_string();
-            task.status = AgentTaskStatus::EXECUTING;
-
-            // Execute step action on webview safely
-            if let Some(webview) = app.get_webview(&task.tab_id) {
-                if step.tool == "browser.scroll" {
-                    let _ = webview.eval("window.scrollBy(0, 400);");
-                }
-            }
-
-            step.status = "SUCCESS".to_string();
-            plan.current_step_index += 1;
-
-            if plan.current_step_index >= plan.steps.len() {
-                task.status = AgentTaskStatus::COMPLETED;
-            } else {
-                plan.steps[plan.current_step_index].status = "READY".to_string();
-                task.status = AgentTaskStatus::OBSERVING;
-            }
-        }
-    }
-    task.updated_at = current_timestamp();
-    Ok(task.clone())
-}
-
-#[tauri::command]
-pub fn agent_cancel_task(
-    state: State<'_, BrowserManagerState>,
-    task_id: String,
-) -> Result<TaskSpec, String> {
-    let mut manager = state.0.lock().map_err(|e| e.to_string())?;
-    let task = manager.agent_runtime.tasks.get_mut(&task_id).ok_or("Task not found")?;
-    task.status = AgentTaskStatus::CANCELLED;
-    task.updated_at = current_timestamp();
-    Ok(task.clone())
-}
 
 pub const EXTRACT_PAGE_CONTENT_SCRIPT: &str = r#"
 (() => {

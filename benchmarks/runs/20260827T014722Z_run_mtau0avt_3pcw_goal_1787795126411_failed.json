@@ -1,0 +1,91 @@
+{
+  "run_id": "run_mtau0avt_3pcw",
+  "task_id": "goal_1787795126411",
+  "goal": "Go to https://github.com/login and stop for human takeover",
+  "started_at": "2026-08-27T01:45:26.412Z",
+  "iterations": 1,
+  "observations": 2,
+  "actions": 0,
+  "verified_actions": 0,
+  "failed_actions": 0,
+  "failed_observations": 0,
+  "failed_strategies": [],
+  "strategy_switches": 0,
+  "repeated_actions": 0,
+  "repeated_strategies": 0,
+  "recovery_attempts": 0,
+  "successful_recoveries": 0,
+  "tabs_opened": 0,
+  "tabs_switched": 0,
+  "model_calls": 2,
+  "model_latency_ms_total": 55343,
+  "tool_calls": 0,
+  "human_interventions": 0,
+  "evidence_items": 0,
+  "verified_evidence_items": 0,
+  "observation_latencies_ms": [
+    10,
+    32
+  ],
+  "reasoning_latencies_ms": [
+    55312,
+    31
+  ],
+  "action_latencies_ms": [],
+  "max_no_progress_streak": 1,
+  "events": 5,
+  "final_status": "failed",
+  "final_reason": "The reasoning layer could not produce a valid decision (Load failed).",
+  "finished_at": "2026-08-27T01:46:22.738Z",
+  "wall_clock_ms": 56326,
+  "steps": [
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:45:26.423Z",
+      "url": "https://www.google.com/",
+      "world_version": 1,
+      "action": "OBSERVE",
+      "strategy": "dom",
+      "result": "observation",
+      "verified": true,
+      "failure_class": null,
+      "recovery": false,
+      "latency_ms": 10
+    },
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:46:21.745Z",
+      "url": "",
+      "world_version": -1,
+      "action": "REASON",
+      "result": "reasoning_failed",
+      "verified": false,
+      "failure_class": "MODEL_ERROR",
+      "recovery": true
+    },
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:46:22.674Z",
+      "url": "https://www.google.com/",
+      "world_version": 1,
+      "action": "OBSERVE",
+      "strategy": "dom",
+      "result": "observation",
+      "verified": true,
+      "failure_class": null,
+      "recovery": false,
+      "latency_ms": 32
+    },
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T01:46:22.737Z",
+      "url": "",
+      "world_version": -1,
+      "action": "REASON",
+      "result": "reasoning_failed",
+      "verified": false,
+      "failure_class": "MODEL_ERROR",
+      "recovery": true
+    }
+  ]
+}

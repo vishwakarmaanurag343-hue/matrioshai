@@ -9,6 +9,7 @@ import { SettingsView } from "../../features/settings/SettingsView";
 import { Conversation } from "../../types";
 import { conversationApi } from "../../services/api/conversations";
 import { nativeBrowserService } from "../../services/browser/nativeService";
+import { API_BASE_URL } from "../../services/api/client";
 
 export type ViewTab = "chats" | "browser" | "notepad" | "account" | "system" | "security";
 
@@ -36,7 +37,7 @@ export const MainLayout: React.FC = () => {
       }
 
       // 2. Refresh from SQLite backend
-      const resp = await fetch("http://127.0.0.1:8000/api/v1/browser/history?limit=50");
+      const resp = await fetch(`${API_BASE_URL}/browser/history?limit=50`);
       if (resp.ok) {
         const sqliteItems = await resp.json();
         if (Array.isArray(sqliteItems)) {

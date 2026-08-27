@@ -76,50 +76,6 @@ export interface SemanticPageModel {
   observation_failed?: boolean;
 }
 
-export type AgentTaskStatus =
-  | "IDLE"
-  | "UNDERSTANDING"
-  | "PLANNING"
-  | "WAITING_FOR_APPROVAL"
-  | "EXECUTING"
-  | "OBSERVING"
-  | "VERIFYING"
-  | "RECOVERING"
-  | "REPLANNING"
-  | "COMPLETED"
-  | "FAILED"
-  | "CANCELLED"
-  | "BLOCKED";
-
-export interface PlanStep {
-  step_id: string;
-  description: string;
-  tool: string;
-  target?: string;
-  value?: string;
-  risk_level: ActionRiskLevel;
-  status: string;
-}
-
-export interface ExecutionPlan {
-  plan_id: string;
-  task_id: string;
-  version: number;
-  objective: string;
-  steps: PlanStep[];
-  current_step_index: number;
-}
-
-export interface TaskSpec {
-  task_id: string;
-  user_goal: string;
-  tab_id: string;
-  status: AgentTaskStatus;
-  active_plan?: ExecutionPlan;
-  created_at: number;
-  updated_at: number;
-}
-
 export interface BrowserContextSummary {
   tab_id: string;
   url: string;
@@ -214,31 +170,6 @@ export interface InstalledExtension {
 }
 
 export const nativeBrowserService = {
-  // Phase 8: Autonomous Agent Runtime
-  createAgentTask: async (
-    userGoal: string,
-    tabId?: string,
-    steps?: any[]
-  ): Promise<TaskSpec> => {
-    return invoke<TaskSpec>("agent_create_task", {
-      userGoal,
-      tabId,
-      steps,
-    });
-  },
-
-  executeNextStep: async (taskId: string): Promise<TaskSpec> => {
-    return invoke<TaskSpec>("agent_execute_next_step", {
-      taskId,
-    });
-  },
-
-  cancelAgentTask: async (taskId: string): Promise<TaskSpec> => {
-    return invoke<TaskSpec>("agent_cancel_task", {
-      taskId,
-    });
-  },
-
   // Semantic Page Understanding & Native WKWebView Inspection
   getSemanticPage: async (tabId?: string): Promise<SemanticPageModel> => {
     return invoke<SemanticPageModel>("browser_get_semantic_page", {

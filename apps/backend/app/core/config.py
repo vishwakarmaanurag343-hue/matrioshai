@@ -23,11 +23,14 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     OLLAMA_MODEL: str = "deepseek-r1:8b"
 
+    GROQ_API_KEY: str = "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"
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+
     OPENROUTER_API_KEY: str = "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"
-    OPENROUTER_MODEL: str = "stealth/ox-alpha"
+    OPENROUTER_MODEL: str = "meta-llama/llama-3.3-70b-instruct:free"
     
     NVIDIA_API_KEY: str = "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"
-    NVIDIA_MODEL: str = "meta/llama-3.1-8b-instruct"
+    NVIDIA_MODEL: str = "meta/llama3-70b-instruct"
 
 settings = Settings()
 

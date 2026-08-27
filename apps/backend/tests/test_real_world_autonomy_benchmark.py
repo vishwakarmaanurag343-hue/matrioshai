@@ -37,7 +37,6 @@ from app.browser.state_store import (
 )
 from app.browser.action_engine import ActionEngine
 from app.browser.verification_engine import VerificationEngine
-from app.browser.agent_loop import AgentExecutionLoop
 from app.browser.security_engine import SecurityPolicyEngine, PromptInjectionDefense
 from app.browser.world_model import WorldModelEngine
 from app.browser.transaction_engine import TransactionEngine

@@ -41,15 +41,17 @@ export function isObservationEmpty(model: PageModel): boolean {
 const RENDERED_TEXT_JS = `(() => {
   const collect = (root, out) => {
     try {
-      root.querySelectorAll('a[href],button,input,select,textarea,[role=link],[role=button],[role=searchbox],[role=textbox]').forEach(el => {
-        if (out.links.length >= 40) return;
+      if (!root) return;
+      root.querySelectorAll('a[href],button,input,select,textarea,[role=link],[role=button],[role=searchbox],[role=textbox],[role=option],[role=gridcell],[tabindex="0"]').forEach(el => {
+        if (out.links.length >= 60) return;
         const tag = (el.tagName||'').toLowerCase();
-        const name = ((el.innerText||el.value||el.getAttribute('aria-label')||'')+'').trim().slice(0,80);
+        const name = ((el.innerText||el.value||el.getAttribute('aria-label')||el.getAttribute('placeholder')||'')+'').trim().slice(0,100);
         const rect = el.getBoundingClientRect();
         if (!name && tag !== 'input') return;
         if (rect.width === 0 && rect.height === 0 && tag !== 'input') return;
+        const elId = 'rt_' + out.links.length;
         out.links.push({
-          element_id: 'rt_' + out.links.length,
+          element_id: elId,
           role: tag === 'a' ? 'link' : tag === 'input' || tag === 'textarea' ? 'textbox' : 'button',
           tag, name,
           href: (el.href || el.getAttribute('href') || '') + '',
@@ -59,23 +61,28 @@ const RENDERED_TEXT_JS = `(() => {
           visible: true,
         });
       });
-      root.querySelectorAll('*').forEach(el => { if (el.shadowRoot) collect(el.shadowRoot, out); });
+      root.querySelectorAll('*').forEach(el => {
+        if (el.shadowRoot) collect(el.shadowRoot, out);
+      });
     } catch (e) {}
   };
   const out = { headings: [], texts: [], links: [] };
   try {
-    document.querySelectorAll('h1,h2,h3').forEach(h => { if (out.headings.length < 10) out.headings.push((h.innerText||'').trim().slice(0,160)); });
-    document.querySelectorAll('p,span,div').forEach(el => {
-      if (out.texts.length >= 18) return;
+    document.querySelectorAll('h1,h2,h3,h4').forEach(h => { if (out.headings.length < 12) out.headings.push((h.innerText||'').trim().slice(0,160)); });
+    document.querySelectorAll('p,span,div,li,td').forEach(el => {
+      if (out.texts.length >= 25) return;
       const t = ((el.innerText)||'').trim();
-      // Long prose blocks plus SHORT price/fact snippets (e.g. ₹1,299) —
-      // commerce data lives in tiny nodes the prose filter used to drop.
       const isFact = /^(?:₹|rs\.?\s|\$\s?|€\s?|£\s?)\d[\d,.]*%?$|^\d[\d,.]*\s?(?:off|%)$/i.test(t);
-      const longEnough = (t.length > 60 && t.length < 400) || (isFact && t.length >= 3 && t.length <= 48);
-      if (longEnough && !out.texts.some(x => x.includes(t) || t.startsWith(x))) out.texts.push(t.slice(0,280));
+      const longEnough = (t.length > 50 && t.length < 500) || (isFact && t.length >= 3 && t.length <= 48);
+      if (longEnough && !out.texts.some(x => x.includes(t) || t.startsWith(x))) out.texts.push(t.slice(0,300));
     });
     collect(document, out);
-    document.querySelectorAll('iframe').forEach(f => { try { if (f.contentDocument) collect(f.contentDocument, out); } catch(e) {} });
+    document.querySelectorAll('iframe, frame').forEach(f => {
+      try {
+        if (f.contentDocument) collect(f.contentDocument, out);
+        else if (f.contentWindow && f.contentWindow.document) collect(f.contentWindow.document, out);
+      } catch(e) {}
+    });
   } catch (e) {}
   return JSON.stringify(out);
 })()`;

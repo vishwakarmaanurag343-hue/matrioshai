@@ -1,5 +1,4 @@
 import { AgentTask } from "../types";
-import { TaskPlanner } from "../planner/taskPlanner";
 import { BrowserAgentHarness } from "../agentHarness";
 
 export type AgentListener = (task: AgentTask | null, activeActionDesc?: string) => void;
@@ -108,54 +107,5 @@ export class BrowserTaskManager {
 
   isGoalWaitingForUser(): boolean {
     return this.currentTask?.status === "waiting_user";
-  }
-
-  /**
-   * @deprecated Legacy template-planner path. Superseded by startGoal().
-   * Kept only until remaining callers are migrated.
-   */
-  async startTask(userGoal: string, tabId: string, currentUrl: string, pageTitle: string): Promise<AgentTask> {
-    console.warn("[BrowserTaskManager] startTask() is deprecated — use startGoal()");
-    this.stopAgent(); // reset previous
-    this.isRunning = true;
-
-    this.activeActionDesc = `Planning: "${userGoal}"...`;
-    this.notify();
-
-    const task = await TaskPlanner.createPlan(userGoal, currentUrl, pageTitle);
-    task.status = "running";
-    this.currentTask = task;
-    this.notify();
-
-    // Start background autonomous loop
-    this.runExecutionLoop(tabId);
-    return task;
-  }
-
-  /**
-   * Autonomous step-by-step execution loop powered by BrowserAgentHarness.
-   * Only used by the deprecated template-planner path above.
-   */
-  private async runExecutionLoop(tabId: string): Promise<void> {
-    if (!this.currentTask) return;
-    const harness = BrowserAgentHarness.getInstance();
-
-    const unsub = harness.subscribe((task, _state, trace) => {
-      if (task) {
-        this.currentTask = task;
-      }
-      if (trace) {
-        this.activeActionDesc = trace.split("\n")[0] || "";
-      }
-      this.notify();
-    });
-
-    try {
-      await harness.executeTask(this.currentTask, tabId);
-    } finally {
-      unsub();
-      this.isRunning = false;
-      this.notify();
-    }
   }
 }

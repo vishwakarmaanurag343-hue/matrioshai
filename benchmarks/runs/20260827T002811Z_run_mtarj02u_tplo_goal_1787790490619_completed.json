@@ -1,0 +1,54 @@
+{
+  "run_id": "run_mtarj02u_tplo",
+  "task_id": "goal_1787790490619",
+  "goal": "Search Google for Python programming language and tell me the page title of the first result.\n",
+  "started_at": "2026-08-27T00:28:10.619Z",
+  "iterations": 1,
+  "observations": 1,
+  "actions": 0,
+  "verified_actions": 0,
+  "failed_actions": 0,
+  "failed_observations": 0,
+  "failed_strategies": [],
+  "strategy_switches": 0,
+  "repeated_actions": 0,
+  "repeated_strategies": 0,
+  "recovery_attempts": 0,
+  "successful_recoveries": 0,
+  "tabs_opened": 0,
+  "tabs_switched": 0,
+  "model_calls": 1,
+  "model_latency_ms_total": 993,
+  "tool_calls": 0,
+  "human_interventions": 0,
+  "evidence_items": 0,
+  "verified_evidence_items": 0,
+  "observation_latencies_ms": [
+    5
+  ],
+  "reasoning_latencies_ms": [
+    993
+  ],
+  "action_latencies_ms": [],
+  "max_no_progress_streak": 0,
+  "events": 5,
+  "final_status": "completed",
+  "final_reason": "Python (programming language) - Wikipedia",
+  "finished_at": "2026-08-27T00:28:11.623Z",
+  "wall_clock_ms": 1004,
+  "steps": [
+    {
+      "iteration": 1,
+      "timestamp": "2026-08-27T00:28:10.626Z",
+      "url": "https://www.google.com/search?q=Python+programming+language",
+      "world_version": 1,
+      "action": "OBSERVE",
+      "strategy": "dom",
+      "result": "observation",
+      "verified": true,
+      "failure_class": null,
+      "recovery": false,
+      "latency_ms": 5
+    }
+  ]
+}

@@ -1,1 +1,103 @@
-{"event": "RUN_START", "run_id": "LOGPROBE_8899", "task_id": "log_probe_task", "goal": "logging verification", "ts": "2026-08-24T14:38:02.473914+00:00"}
+{"event": "RUN_START", "run_id": "probe_preflight_1", "task_id": "task_probe_1", "user_goal": "Probe preflight", "ts": "2026-08-26T23:46:19.197759+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaqyp9b_vdht", "task_id": "goal_1787788301473", "user_goal": "", "ts": "2026-08-26T23:51:41.477831+00:00"}
+{"event": "RUN_END", "run_id": "run_mtaqyp9b_vdht", "task_id": "goal_1787788301473", "status": "failed", "duration_ms": 1694, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260826T235143Z_run_mtaqyp9b_vdht_goal_1787788301473_failed.json", "ts": "2026-08-26T23:51:43.172902+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaqyp9b_vdht", "task_id": "goal_1787788431675", "user_goal": "", "ts": "2026-08-26T23:53:51.681015+00:00"}
+{"event": "RUN_START", "run_id": "run_mtarg7tc_8ds7", "task_id": "goal_1787789081132", "user_goal": "", "ts": "2026-08-27T00:04:41.141203+00:00"}
+{"event": "RUN_END", "run_id": "run_mtaqyp9b_vdht", "task_id": "goal_1787788431675", "status": "failed", "duration_ms": 519033, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T000441Z_run_mtaqyp9b_vdht_goal_1787788431675_failed.json", "ts": "2026-08-27T00:04:41.141978+00:00"}
+{"event": "RUN_END", "run_id": "run_mtarg7tc_8ds7", "task_id": "goal_1787789081132", "status": "failed", "duration_ms": 1161, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T000442Z_run_mtarg7tc_8ds7_goal_1787789081132_failed.json", "ts": "2026-08-27T00:04:42.295930+00:00"}
+{"event": "RUN_START", "run_id": "run_mtarj02u_tplo", "task_id": "goal_1787789199724", "user_goal": "", "ts": "2026-08-27T00:06:39.729654+00:00"}
+{"event": "RUN_END", "run_id": "run_mtarj02u_tplo", "task_id": "goal_1787789199724", "status": "completed", "duration_ms": 3793, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T000643Z_run_mtarj02u_tplo_goal_1787789199724_completed.json", "ts": "2026-08-27T00:06:43.527213+00:00"}
+{"event": "RUN_START", "run_id": "run_mtarj02u_tplo", "task_id": "goal_1787790218653", "user_goal": "", "ts": "2026-08-27T00:23:38.659436+00:00"}
+{"event": "RUN_START", "run_id": "run_mtarj02u_tplo", "task_id": "goal_1787790413902", "user_goal": "", "ts": "2026-08-27T00:26:53.911238+00:00"}
+{"event": "RUN_END", "run_id": "run_mtarj02u_tplo", "task_id": "goal_1787790218653", "status": "failed", "duration_ms": 108467, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T002653Z_run_mtarj02u_tplo_goal_1787790218653_failed.json", "ts": "2026-08-27T00:26:53.911955+00:00"}
+{"event": "RUN_START", "run_id": "run_mtarj02u_tplo", "task_id": "goal_1787790490619", "user_goal": "", "ts": "2026-08-27T00:28:10.622032+00:00"}
+{"event": "RUN_END", "run_id": "run_mtarj02u_tplo", "task_id": "goal_1787790490619", "status": "completed", "duration_ms": 1004, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T002811Z_run_mtarj02u_tplo_goal_1787790490619_completed.json", "ts": "2026-08-27T00:28:11.626498+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatt5g3_1m5i", "task_id": "goal_1787793028565", "user_goal": "", "ts": "2026-08-27T01:10:28.612927+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatt5g3_1m5i", "task_id": "goal_1787793028574", "user_goal": "", "ts": "2026-08-27T01:10:28.629168+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatt5g3_1m5i", "task_id": "goal_1787793028573", "user_goal": "", "ts": "2026-08-27T01:10:28.629066+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatt5g3_1m5i", "task_id": "goal_1787793028575", "user_goal": "", "ts": "2026-08-27T01:10:28.629773+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatt5g3_1m5i", "task_id": "goal_1787793028575", "user_goal": "", "ts": "2026-08-27T01:10:28.629860+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattmb3_dxji", "task_id": "goal_1787793050418", "user_goal": "", "ts": "2026-08-27T01:10:50.493346+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattmb3_dxji", "task_id": "goal_1787793050428", "user_goal": "", "ts": "2026-08-27T01:10:50.504423+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattmb3_dxji", "task_id": "goal_1787793050429", "user_goal": "", "ts": "2026-08-27T01:10:50.510584+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattmb3_dxji", "task_id": "goal_1787793050430", "user_goal": "", "ts": "2026-08-27T01:10:50.517417+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattmb3_dxji", "task_id": "goal_1787793050430", "user_goal": "", "ts": "2026-08-27T01:10:50.525173+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattrqg_3kyr", "task_id": "goal_1787793057450", "user_goal": "", "ts": "2026-08-27T01:10:57.464344+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattrqg_3kyr", "task_id": "goal_1787793057457", "user_goal": "", "ts": "2026-08-27T01:10:57.563539+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattrqg_3kyr", "task_id": "goal_1787793057459", "user_goal": "", "ts": "2026-08-27T01:10:57.563972+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattrqg_3kyr", "task_id": "goal_1787793057458", "user_goal": "", "ts": "2026-08-27T01:10:57.563702+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattrqg_3kyr", "task_id": "goal_1787793057457", "user_goal": "", "ts": "2026-08-27T01:10:57.563586+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattv0k_kpef", "task_id": "goal_1787793061706", "user_goal": "", "ts": "2026-08-27T01:11:01.739403+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattv0k_kpef", "task_id": "goal_1787793061716", "user_goal": "", "ts": "2026-08-27T01:11:02.026475+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattv0k_kpef", "task_id": "goal_1787793061717", "user_goal": "", "ts": "2026-08-27T01:11:02.026525+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattv0k_kpef", "task_id": "goal_1787793061723", "user_goal": "", "ts": "2026-08-27T01:11:02.027742+00:00"}
+{"event": "RUN_START", "run_id": "run_mtattv0k_kpef", "task_id": "goal_1787793061720", "user_goal": "", "ts": "2026-08-27T01:11:02.027665+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaty9uw_ahgm", "task_id": "goal_1787793267566", "user_goal": "", "ts": "2026-08-27T01:14:27.682929+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaty9uw_ahgm", "task_id": "goal_1787793267585", "user_goal": "", "ts": "2026-08-27T01:14:27.689338+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaty9uw_ahgm", "task_id": "goal_1787793267599", "user_goal": "", "ts": "2026-08-27T01:14:27.690320+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaty9uw_ahgm", "task_id": "goal_1787793267605", "user_goal": "", "ts": "2026-08-27T01:14:27.690266+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaty9uw_ahgm", "task_id": "goal_1787793267589", "user_goal": "", "ts": "2026-08-27T01:14:27.689963+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatzjav_nff2", "task_id": "goal_1787793326458", "user_goal": "", "ts": "2026-08-27T01:15:26.497666+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatzjav_nff2", "task_id": "goal_1787793326467", "user_goal": "", "ts": "2026-08-27T01:15:26.546737+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatzjav_nff2", "task_id": "goal_1787793326472", "user_goal": "", "ts": "2026-08-27T01:15:26.549806+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatzjav_nff2", "task_id": "goal_1787793326471", "user_goal": "", "ts": "2026-08-27T01:15:26.550260+00:00"}
+{"event": "RUN_START", "run_id": "run_mtatzjav_nff2", "task_id": "goal_1787793326472", "user_goal": "", "ts": "2026-08-27T01:15:26.552940+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787793429374", "user_goal": "", "ts": "2026-08-27T01:17:09.379199+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787793429374", "status": "completed", "duration_ms": 3495, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T011712Z_run_mtau0avt_3pcw_goal_1787793429374_completed.json", "ts": "2026-08-27T01:17:12.874344+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787793442120", "user_goal": "", "ts": "2026-08-27T01:17:22.124467+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9lf2_i7l6", "task_id": "goal_1787793795760", "user_goal": "", "ts": "2026-08-27T01:23:15.793685+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9lf2_i7l6", "task_id": "goal_1787793795769", "user_goal": "", "ts": "2026-08-27T01:23:15.868623+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9lf2_i7l6", "task_id": "goal_1787793795771", "user_goal": "", "ts": "2026-08-27T01:23:15.870097+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9lf2_i7l6", "task_id": "goal_1787793795772", "user_goal": "", "ts": "2026-08-27T01:23:15.871007+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9lf2_i7l6", "task_id": "goal_1787793795773", "user_goal": "", "ts": "2026-08-27T01:23:15.873894+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9zm9_s5xi", "task_id": "goal_1787793814164", "user_goal": "", "ts": "2026-08-27T01:23:34.230027+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9zm9_s5xi", "task_id": "goal_1787793814179", "user_goal": "", "ts": "2026-08-27T01:23:34.265036+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9zm9_s5xi", "task_id": "goal_1787793814182", "user_goal": "", "ts": "2026-08-27T01:23:34.265534+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9zm9_s5xi", "task_id": "goal_1787793814183", "user_goal": "", "ts": "2026-08-27T01:23:34.274602+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau9zm9_s5xi", "task_id": "goal_1787793814183", "user_goal": "", "ts": "2026-08-27T01:23:34.274507+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaubdlz_v5da", "task_id": "goal_1787793878955", "user_goal": "", "ts": "2026-08-27T01:24:38.994559+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaubdlz_v5da", "task_id": "goal_1787793878971", "user_goal": "", "ts": "2026-08-27T01:24:39.060904+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaubdlz_v5da", "task_id": "goal_1787793878974", "user_goal": "", "ts": "2026-08-27T01:24:39.061730+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaubdlz_v5da", "task_id": "goal_1787793878978", "user_goal": "", "ts": "2026-08-27T01:24:39.079840+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaubdlz_v5da", "task_id": "goal_1787793878980", "user_goal": "", "ts": "2026-08-27T01:24:39.081501+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787793889869", "user_goal": "", "ts": "2026-08-27T01:24:49.872835+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaue0qu_ru7f", "task_id": "goal_1787794002250", "user_goal": "", "ts": "2026-08-27T01:26:42.300127+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaue0qu_ru7f", "task_id": "goal_1787794002263", "user_goal": "", "ts": "2026-08-27T01:26:42.374294+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaue0qu_ru7f", "task_id": "goal_1787794002266", "user_goal": "", "ts": "2026-08-27T01:26:42.374697+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaue0qu_ru7f", "task_id": "goal_1787794002260", "user_goal": "", "ts": "2026-08-27T01:26:42.374106+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaue0qu_ru7f", "task_id": "goal_1787794002269", "user_goal": "", "ts": "2026-08-27T01:26:42.376971+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787794034880", "user_goal": "", "ts": "2026-08-27T01:27:14.886462+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787794034880", "status": "failed", "duration_ms": 17490, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T012732Z_run_mtau0avt_3pcw_goal_1787794034880_failed.json", "ts": "2026-08-27T01:27:32.377421+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaugste_4tur", "task_id": "goal_1787794131943", "user_goal": "", "ts": "2026-08-27T01:28:51.980260+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaugste_4tur", "task_id": "goal_1787794131956", "user_goal": "", "ts": "2026-08-27T01:28:52.061229+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaugste_4tur", "task_id": "goal_1787794131957", "user_goal": "", "ts": "2026-08-27T01:28:52.061448+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaugste_4tur", "task_id": "goal_1787794131959", "user_goal": "", "ts": "2026-08-27T01:28:52.076176+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaugste_4tur", "task_id": "goal_1787794131958", "user_goal": "", "ts": "2026-08-27T01:28:52.076497+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787794157718", "user_goal": "", "ts": "2026-08-27T01:29:17.723362+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787794157718", "status": "failed", "duration_ms": 35732, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T012953Z_run_mtau0avt_3pcw_goal_1787794157718_failed.json", "ts": "2026-08-27T01:29:53.455232+00:00"}
+{"event": "RUN_START", "run_id": "run_mtauim3e_na63", "task_id": "goal_1787794216544", "user_goal": "", "ts": "2026-08-27T01:30:16.681447+00:00"}
+{"event": "RUN_START", "run_id": "run_mtauim3e_na63", "task_id": "goal_1787794216559", "user_goal": "", "ts": "2026-08-27T01:30:16.685080+00:00"}
+{"event": "RUN_START", "run_id": "run_mtauim3e_na63", "task_id": "goal_1787794216562", "user_goal": "", "ts": "2026-08-27T01:30:16.685472+00:00"}
+{"event": "RUN_START", "run_id": "run_mtauim3e_na63", "task_id": "goal_1787794216564", "user_goal": "", "ts": "2026-08-27T01:30:16.685796+00:00"}
+{"event": "RUN_START", "run_id": "run_mtauim3e_na63", "task_id": "goal_1787794216566", "user_goal": "", "ts": "2026-08-27T01:30:16.687549+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787794237590", "user_goal": "", "ts": "2026-08-27T01:30:37.593912+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787794335910", "user_goal": "", "ts": "2026-08-27T01:32:15.913274+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787794335910", "status": "failed", "duration_ms": 3225, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T013219Z_run_mtau0avt_3pcw_goal_1787794335910_failed.json", "ts": "2026-08-27T01:32:19.138519+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaut26k_wa2y", "task_id": "goal_1787794703957", "user_goal": "", "ts": "2026-08-27T01:38:24.134692+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaut26k_wa2y", "task_id": "goal_1787794703970", "user_goal": "", "ts": "2026-08-27T01:38:24.139461+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaut26k_wa2y", "task_id": "goal_1787794703966", "user_goal": "", "ts": "2026-08-27T01:38:24.139294+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaut26k_wa2y", "task_id": "goal_1787794703968", "user_goal": "", "ts": "2026-08-27T01:38:24.139226+00:00"}
+{"event": "RUN_START", "run_id": "run_mtaut26k_wa2y", "task_id": "goal_1787794703970", "user_goal": "", "ts": "2026-08-27T01:38:24.139150+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787794949111", "user_goal": "", "ts": "2026-08-27T01:42:29.119570+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787794989762", "user_goal": "", "ts": "2026-08-27T01:43:09.767676+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795023602", "user_goal": "", "ts": "2026-08-27T01:43:43.605400+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795036966", "user_goal": "", "ts": "2026-08-27T01:43:56.969474+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795052536", "user_goal": "", "ts": "2026-08-27T01:44:12.539879+00:00"}
+{"event": "RUN_START", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795126411", "user_goal": "", "ts": "2026-08-27T01:45:26.419218+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795052536", "status": "cancelled", "duration_ms": 43226, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T014526Z_run_mtau0avt_3pcw_goal_1787795052536_cancelled.json", "ts": "2026-08-27T01:45:26.420295+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795052536", "status": "cancelled", "duration_ms": 43230, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T014526Z_run_mtau0avt_3pcw_goal_1787795052536_cancelled.json", "ts": "2026-08-27T01:45:26.433004+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795052536", "status": "cancelled", "duration_ms": 43230, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T014526Z_run_mtau0avt_3pcw_goal_1787795052536_cancelled.json", "ts": "2026-08-27T01:45:26.467970+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795052536", "status": "cancelled", "duration_ms": 43231, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T014526Z_run_mtau0avt_3pcw_goal_1787795052536_cancelled.json", "ts": "2026-08-27T01:45:26.470240+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795052536", "status": "cancelled", "duration_ms": 43231, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T014526Z_run_mtau0avt_3pcw_goal_1787795052536_cancelled.json", "ts": "2026-08-27T01:45:26.471889+00:00"}
+{"event": "RUN_START", "run_id": "run_mtav4iju_ral9", "task_id": "goal_1787795242589", "user_goal": "", "ts": "2026-08-27T01:47:22.599309+00:00"}
+{"event": "RUN_END", "run_id": "run_mtau0avt_3pcw", "task_id": "goal_1787795126411", "status": "failed", "duration_ms": 56326, "artifact_path": "/Users/anurag/Developer/Projects/matrioshai/benchmarks/runs/20260827T014722Z_run_mtau0avt_3pcw_goal_1787795126411_failed.json", "ts": "2026-08-27T01:47:22.600203+00:00"}

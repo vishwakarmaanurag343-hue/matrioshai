@@ -3,7 +3,6 @@ export * from "./safety/promptInjectionGuard";
 export * from "./perception/pageModel";
 export * from "./perception/elementResolver";
 export * from "./execution/actionVerifier";
-export * from "./planner/taskPlanner";
 export * from "./reasoning/stepReasoner";
 export * from "./state/browserTaskState";
 export * from "./state/agentEvents";

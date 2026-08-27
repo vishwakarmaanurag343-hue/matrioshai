@@ -19,8 +19,12 @@ export class ActionVerifier {
   ): ActionVerificationResult {
     const act = action.toUpperCase();
 
-    // Detect 404 / 403 / Server error states in destination page
-    const errorMarkers = ["404 not found", "page not found", "403 forbidden", "bad request", "dns_probe", "error 404", "cannot be found"];
+    // Detect 404 / 403 / 500 / Server error / DNS failure states in destination page
+    const errorMarkers = [
+      "404 not found", "page not found", "403 forbidden", "bad request",
+      "500 internal server error", "502 bad gateway", "503 service unavailable",
+      "dns_probe", "error 404", "cannot be found", "connection refused"
+    ];
     const pageTextSample = `${after.title} ${after.headings.join(" ")} ${after.text_blocks.slice(0, 3).join(" ")}`.toLowerCase();
     const isErrorPage = errorMarkers.some((m) => pageTextSample.includes(m));
 

@@ -1,43 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { TaskPlanner } from "../planner/taskPlanner";
 import { PromptInjectionGuard } from "../safety/promptInjectionGuard";
 import { ElementResolver } from "../perception/elementResolver";
 import { ActionVerifier } from "../execution/actionVerifier";
 import { PerceptionSnapshot, RobustElement } from "../types";
 
 describe("Browser Agent Subsystem Tests", () => {
-  describe("TaskPlanner", () => {
-    it("classifies travel goals correctly and creates multi-step plan", async () => {
-      const task = await TaskPlanner.createPlan(
-        "Plan a 7-day trip to Japan under ₹2 lakh",
-        "https://matrioshai.local",
-        "Home"
-      );
-      expect(task.mode).toBe("travel");
-      expect(task.steps.length).toBeGreaterThanOrEqual(3);
-      expect(task.steps[0].tool).toBe("navigate");
-    });
-
-    it("classifies comparison goals correctly", async () => {
-      const task = await TaskPlanner.createPlan(
-        "Search for an RTX 5090 and compare options",
-        "https://matrioshai.local",
-        "Home"
-      );
-      expect(task.mode).toBe("comparison");
-      expect(task.steps.length).toBeGreaterThanOrEqual(3);
-    });
-
-    it("classifies research goals correctly", async () => {
-      const task = await TaskPlanner.createPlan(
-        "Research the best universities for Data Science in Germany",
-        "https://matrioshai.local",
-        "Home"
-      );
-      expect(task.mode).toBe("research");
-      expect(task.steps.length).toBeGreaterThanOrEqual(3);
-    });
-  });
+  // NOTE (Phase 1): TaskPlanner classification tests were removed together with
+  // the template planner itself. Goal understanding now lives exclusively in the
+  // backend step-reasoner (POST /browser/agent/next-step); routing into it is
+  // pinned by e2e_agent_validation.test.ts Tests 1–3.
 
   describe("PromptInjectionGuard", () => {
     it("detects and blocks prompt injection patterns", () => {

@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.core.migrations import run_migrations
 from app.api.v1 import (
-    health, status, conversations, chat, notes, memory, settings as settings_router, security, executive, workspaces, agent, computer, communication, knowledge, proactive, orchestrator, system, browser
+    health, status, conversations, chat, notes, memory, settings as settings_router, security, executive, workspaces, agent, computer, communication, knowledge, proactive, orchestrator, system, browser, notepad
 )
 import app.computer.permissions  # Register computer tools
 import app.communication.permissions  # Register communication tools
@@ -52,6 +52,7 @@ app.include_router(proactive.router, prefix="/api/v1")
 app.include_router(orchestrator.router, prefix="/api/v1")
 app.include_router(system.router, prefix="/api/v1")
 app.include_router(browser.router, prefix="/api/v1")
+app.include_router(notepad.router, prefix="/api/v1")
 
 @app.get("/")
 def root():

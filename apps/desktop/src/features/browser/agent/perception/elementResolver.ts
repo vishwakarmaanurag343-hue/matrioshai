@@ -124,25 +124,43 @@ export class ElementResolver {
     if (!textQuery || !elements || elements.length === 0) return null;
 
     let bestElem: RobustElement | null = null;
-    let highestScore = 0;
+    let bestScore = 0;
 
     for (const el of elements) {
+      if (el.disabled || el.visible === false || (el as any).obscured) continue;
       const candidateText = `${el.text || ""} ${el.name || ""} ${el.ariaLabel || ""}`.trim();
-      const score = this.stringSimilarity(textQuery, candidateText);
+      let score = this.stringSimilarity(textQuery, candidateText);
+      if (candidateText.toLowerCase() === textQuery.toLowerCase().trim()) {
+        score = 1.0;
+      }
 
-      if (score > highestScore && score >= 0.65) {
-        highestScore = score;
+      if (score > bestScore) {
+        bestScore = score;
         bestElem = el;
       }
     }
 
-    if (!bestElem) return null;
+    if (!bestElem || bestScore < 0.65) {
+      return null;
+    }
+
+    // Safety Gate: If multiple candidates share top score >= 0.88 and not exact match (1.0), fail closed
+    const topCandidates = elements.filter((e) => {
+      if (e.disabled || e.visible === false || (e as any).obscured) return false;
+      const text = `${e.text || ""} ${e.name || ""} ${e.ariaLabel || ""}`.trim();
+      const score = text.toLowerCase() === textQuery.toLowerCase().trim() ? 1.0 : this.stringSimilarity(textQuery, text);
+      return score >= bestScore - 0.02;
+    });
+
+    if (topCandidates.length > 1 && bestScore < 1.0) {
+      return null;
+    }
 
     return {
       element: bestElem,
       strategy: "text",
-      confidence: highestScore,
-      reason: `Matched text similarity (${Math.round(highestScore * 100)}%) for '${textQuery}'`,
+      confidence: bestScore,
+      reason: `Matched text similarity (${Math.round(bestScore * 100)}%) for '${textQuery}'`,
       href: bestElem.href || "",
       text: bestElem.text || bestElem.name || "",
       role: bestElem.role || bestElem.tag || "element",
@@ -182,14 +200,33 @@ export class ElementResolver {
 
       // Check if string contains ordinal or priority intent (e.g. "3rd website", "first result", "best result", "the ebist", "frist websit")
       const lower = target.toLowerCase();
+
+      // Custom popover / dropdown resolution: look for matching combobox, listbox, or popover button
+      const popoverTrigger = pageModel.buttons
+        .concat(pageModel.selects as any)
+        .find((e) => !e.disabled && e.visible !== false && !(e as any).obscured && `${e.name || ""} ${e.text || ""} ${e.ariaLabel || ""}`.toLowerCase().includes(lower) && (e.role === "combobox" || e.role === "listbox"));
+      if (popoverTrigger) {
+        return {
+          element: popoverTrigger,
+          strategy: "text",
+          confidence: 0.92,
+          reason: `Matched popover dropdown trigger element '${popoverTrigger.name || popoverTrigger.text}' for '${target}'`,
+          href: popoverTrigger.href || "",
+          text: popoverTrigger.text || popoverTrigger.name || "",
+          role: popoverTrigger.role || "combobox",
+          boundingRect: popoverTrigger.boundingBox || { x: 0, y: 0, width: 0, height: 0 },
+          fingerprint: this.generateFingerprint(popoverTrigger),
+        };
+      }
+
       if (
         lower.includes("1st") ||
         lower.includes("first") ||
         lower.includes("frist") ||
         lower.includes("frst") ||
         lower.includes("fst") ||
-        lower.includes("best") ||
-        lower.includes("ebist") ||
+        (lower.includes("best") && (lower.startsWith("open") || lower.startsWith("go") || lower.includes("result") || lower.includes("website") || lower.includes("link") || lower.includes("page"))) ||
+        (lower.includes("ebist") && (lower.startsWith("open") || lower.startsWith("go") || lower.includes("result") || lower.includes("website") || lower.includes("link") || lower.includes("page"))) ||
         lower.includes("top result") ||
         lower.includes("top website") ||
         lower.includes("official")

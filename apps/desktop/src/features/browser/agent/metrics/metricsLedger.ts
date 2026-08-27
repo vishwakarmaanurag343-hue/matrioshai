@@ -310,6 +310,7 @@ class MetricsLedger {
   /** Retry every staged artifact; drops only after a confirmed server 2xx. */
   async retryPending() {
     let staged: string[] = [];
+    if (typeof localStorage === "undefined") return;
     try {
       staged = JSON.parse(localStorage.getItem(PENDING_KEY) || "[]");
     } catch {

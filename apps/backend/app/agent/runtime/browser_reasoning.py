@@ -47,9 +47,16 @@ class ExpectedEffect(BaseModel):
 
 
 class EvidenceItem(BaseModel):
+    id: Optional[str] = None             # Phase 3: deterministic id e.g. "ev_17877912"
     label: str                          # e.g. "official price", "competitor price"
-    value: str                          # e.g. "₹15,999"
+    value: str                          # e.g. "$1,299.00"
+    normalized_value: Optional[str] = None # Phase 4: normalized comparison value
     source: str = ""                    # URL the fact came from
+    tab_id: Optional[str] = None        # Phase 3: origin tab id
+    timestamp: Optional[str] = None     # Phase 3: ISO timestamp
+    confidence: Optional[float] = None  # Phase 3: 0.0-1.0
+    evidence_type: Optional[str] = "OBSERVED" # OBSERVED | USER_PROVIDED | INFERRED | DERIVED
+    validity: Optional[str] = "CURRENT"      # CURRENT | STALE | INVALIDATED | CONTRADICTED
 
 
 class AgentDecision(BaseModel):
@@ -62,10 +69,12 @@ class AgentDecision(BaseModel):
     message: Optional[str] = None      # ASK_USER / WAIT_FOR_USER text
     evidence: List[EvidenceItem] = Field(default_factory=list)  # REQUIRED for DONE on research goals
     progress_estimate: Optional[int] = None                        # honest self-report 0-100
+    subgoal: Optional[str] = None      # Phase 3: next active sub-objective
+    confidence: Optional[float] = None # Phase 3: model self-reported confidence 0.0-1.0
 
 
 FailureCategory = Literal[
-    "TARGET_NOT_FOUND", "OBSERVATION_EMPTY", "EXTRACTION_FAILED",
+    "TARGET_NOT_FOUND", "STALE_ELEMENT", "OBSERVATION_EMPTY", "EXTRACTION_FAILED",
     "NAVIGATION_FAILED", "VERIFICATION_FAILED", "AUTH_REQUIRED",
     "CAPTCHA", "BLOCKED", "PERMISSION_REQUIRED", "TIMEOUT", "UNKNOWN",
 ]
@@ -118,6 +127,8 @@ class ReasoningRequest(BaseModel):
     constraints: List[str] = Field(default_factory=list)
     failed_strategies: List[str] = Field(default_factory=list)   # exhausted strategies w/ counts
     observation_level: str = "dom"                               # perception level that produced this view
+    subgoal: Optional[str] = None                                # Phase 3: active sub-objective
+    accumulated_evidence: List[EvidenceItem] = Field(default_factory=list) # Phase 3: facts verified across steps/tabs
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +157,7 @@ RULES:
 1. If the user input is a QUESTION answerable from the current page/context, use ANSWER with the answer in "value". Do not act.
 2. Only use el_N identifiers that appear in the CURRENT interactive-element list. Element ids belong to the tab you are observing — after SWITCH_TAB they change; re-read them.
 3. TYPE only into textbox/searchbox/textarea roles. Never TYPE into links or buttons. Prefer pressing a named search button over PRESS_KEY; PRESS_KEY must name the key in "value".
-4. After every mutating action state the single most checkable expected_effect (what proves it worked). For read-only steps (WAIT/OBSERVE/EXTRACT) leave expected_effect type "none".
+4. After every mutating action state the single most checkable expected_effect (what proves it worked). For read-only steps (WAIT/OBSERVE/EXTRACT) leave expected_effect type "none". If EXTRACT has already been executed on the current page and EVIDENCE is present, your NEXT action MUST be ANSWER or DONE with the final summary in "value". Do NOT repeat EXTRACT on the same page.
 5. If a page shows login/signup/OTP/CAPTCHA/password that blocks progress: WAIT_FOR_USER with a clear message. NEVER type passwords, OTP codes, or payment credentials yourself.
 6. Purchases/payments/bookings/submissions that are irreversible: set requires_approval=true. You may PREPARE (fill cart/form) but the COMMIT happens only after explicit human approval.
 7. RECOVERY: history entries marked NOT-VERIFIED carry a structured failure category. When the same action+target failed twice, or a FAILED STRATEGY appears with count>=2, you MUST change strategy: different element, different page section, different site/tab, or a different discovery route (e.g. site search, Google search tab, category navigation). Never repeat an exhausted strategy.
@@ -265,7 +276,8 @@ def _validate_decision(candidate: Dict[str, Any], req: ReasoningRequest) -> Agen
         ev_raw = candidate.get("evidence") or []
         if not isinstance(ev_raw, list):
             ev_raw = []
-        if _RESEARCH_GOAL_RE.search(req.goal or "") and len(ev_raw) == 0:
+        total_evidence_count = len(ev_raw) + len(req.accumulated_evidence or [])
+        if _RESEARCH_GOAL_RE.search(req.goal or "") and total_evidence_count == 0:
             raise ValueError(
                 "DONE rejected: this goal needs collected evidence. Include an "
                 "'evidence' array of {label,value,source} items for every fact "
@@ -361,7 +373,7 @@ def _build_user_prompt(req: ReasoningRequest) -> str:
                     fail += f" observed={h.failure.evidence[:100]}"
             lines.append(
                 f"{h.iteration}. {h.action} {h.target or ''} {'→ ' + (h.value or '')[:50] if h.value else ''} [{status}]"
-                + (fail,)
+                + fail
                 + (f" note: {h.note[:120]}" if h.note else "")
                 + (f" url {h.url_before} → {h.url_after}" if h.url_after and h.url_after != h.url_before else "")
             )
@@ -377,9 +389,47 @@ def _build_user_prompt(req: ReasoningRequest) -> str:
 
     constraints = "".join(f"\nCONSTRAINT: {c}" for c in req.constraints)
 
+    subgoal_str = f"\nACTIVE SUBGOAL: {req.subgoal}\n" if req.subgoal else ""
+
+    evidence_str = ""
+    if req.accumulated_evidence:
+        ev_lines = []
+        agreements = []
+        contradictions = []
+
+        for e in req.accumulated_evidence[:15]:
+            status_tag = f" [{e.validity}]" if e.validity and e.validity != "CURRENT" else ""
+            ev_lines.append(f"- [{e.id or 'ev'}][{e.label}]: {e.value} (source: {e.source}{status_tag})")
+            if e.validity == "CONTRADICTED":
+                contradictions.append(f"  * Conflict on '{e.label}' from {e.source}: '{e.value}'")
+
+        # Group by label to find explicit agreements
+        label_groups: Dict[str, List[EvidenceItem]] = {}
+        for e in req.accumulated_evidence:
+            lKey = e.label.lower().strip()
+            label_groups.setdefault(lKey, []).append(e)
+
+        for lKey, g in label_groups.items():
+            if len(g) > 1 and all(x.validity != "CONTRADICTED" for x in g):
+                sources = ", ".join(x.source for x in g)
+                agreements.append(f"  * Multi-source agreement on '{g[0].label}': '{g[0].value}' (sources: {sources})")
+
+        comparison_block = ""
+        if agreements:
+            comparison_block += "\nVERIFIED AGREEMENTS BETWEEN SOURCES:\n" + "\n".join(agreements) + "\n"
+        if contradictions:
+            comparison_block += "\nDETECTED CONTRADICTIONS BETWEEN SOURCES:\n" + "\n".join(contradictions) + "\n"
+
+        evidence_str = (
+            "\nACCUMULATED CROSS-TAB EVIDENCE:\n"
+            + "\n".join(ev_lines) + "\n"
+            + comparison_block
+        )
+
     return (
-        f"USER GOAL: {req.goal}\n\n"
-        f"CURRENT PAGE: {req.title!r} ({req.url}) readyState={req.ready_state}\n"
+        f"USER GOAL: {req.goal}\n"
+        f"{subgoal_str}"
+        f"\nCURRENT PAGE: {req.title!r} ({req.url}) readyState={req.ready_state}\n"
         f"PERCEPTION LEVEL: {req.observation_level}"
         + (" (fallback active — primary DOM extraction was empty)" if req.observation_level != "dom" else "")
         + "\n"
@@ -387,6 +437,7 @@ def _build_user_prompt(req: ReasoningRequest) -> str:
         f"PAGE TEXT (excerpt):\n" +
         ("\n".join(f"- {t[:_TEXT_BLOCK_CHARS]}" for t in req.text_blocks[:_MAX_TEXT_BLOCKS]) or "- (none)")
         + "\n"
+        f"{evidence_str}"
         f"\nOPEN TABS:\n{tabs}\n"
         f"\nINTERACTIVE ELEMENTS (el_N | role | label):\n" + ("\n".join(els) or "(none detected)") + "\n"
         f"{hist}{failed_strats}{constraints}\n"

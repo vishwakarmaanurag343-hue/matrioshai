@@ -98,3 +98,29 @@ async def test_ollama_fallback_when_offline():
     health_info = await provider.health()
     assert health_info["connected"] is False
     assert "Unable to connect" in health_info["details"]
+
+def test_openapi_generation_and_agent_routes(client):
+    """
+    Phase 1.5 & Phase 2D Regression Test: Ensure /openapi.json generates HTTP 200 without schema errors,
+    canonical agent routes and live control infrastructure are represented, and dead backend agent task routes are cleanly retired.
+    """
+    res = client.get("/openapi.json")
+    assert res.status_code == 200
+    data = res.json()
+    assert data.get("info", {}).get("title") == "MATRIOSHAI Core"
+    paths = data.get("paths", {})
+    assert "/api/v1/browser/agent/next-step" in paths
+    assert "/api/v1/browser/agent/metrics" in paths
+    assert "/api/v1/browser/agent/metrics/start" in paths
+    assert "/api/v1/health" in paths
+    assert "/api/v1/browser/control/tabs" in paths
+    assert "/api/v1/browser/control/audit-logs" in paths
+    assert "/api/v1/browser/security/state" in paths
+    assert "/api/v1/browser/transactions" in paths
+
+    # Phase 2D: Verify dead /agent/tasks route is cleanly retired from OpenAPI schema
+    assert "/api/v1/browser/agent/tasks" not in paths
+    assert "/api/v1/browser/agent/tasks/{task_id}/start" not in paths
+
+
+
